@@ -1,0 +1,48 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Virtual environments
+.venv/
+env/
+venv/
+
+# VS Code settings
+.vscode/
+
+# macOS system files
+.DS_Store
+
+.venv/
+env/
+venv/
+
+# VS Code settings
+.vscode/
+
+# macOS system files
+.DS_Store
+
+# Data (si quieres ignorar CSV grandes)
+data/*.csv
+
+# Test result files
+*.log
+*.out
+*.coverage
+
+# Streamlit or Dash cache (si usas alguno)
+.streamlit/
+__dash_cache__/
+
+# Python environments
+*.egg-info/
+build/
+dist/
+
+# Others
+*.swp
