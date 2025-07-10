@@ -17,6 +17,7 @@ This project implements a modular system in Python for the valuation of European
 
 ## Project Structure
 
+```
 option-pricing-model/
 │
 ├── notebooks/ # Jupyter notebooks for each model
@@ -43,7 +44,7 @@ option-pricing-model/
 ├── requirements.txt # Dependencies
 ├── .gitignore # Git ignore rules
 └── README.md # Project documentation
-
+```
 
 ## Installation
 
