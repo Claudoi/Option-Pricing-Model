@@ -64,8 +64,6 @@ def monte_carlo_asian(
 
 
 
-import numpy as np
-
 
 def monte_carlo_digital_barrier(
     S: float,
@@ -113,3 +111,63 @@ def monte_carlo_digital_barrier(
 
     final_payoff = payout * (barrier_crossed & intrinsic)
     return discount * np.mean(final_payoff)
+
+
+
+
+def monte_carlo_lookback(
+    S: float,
+    K: float,
+    T: float,
+    r: float,
+    sigma: float,
+    option_type: str = "call",
+    strike_type: str = "fixed",
+    n_simulations: int = 10000,
+    n_steps: int = 100
+) -> float:
+    
+    """
+    Prices European-style lookback options using Monte Carlo simulation.
+    """
+
+    # --- Input validation ---
+    if option_type not in {"call", "put"}:
+        raise ValueError("option_type must be either 'call' or 'put'")
+    if strike_type not in {"fixed", "floating"}:
+        raise ValueError("strike_type must be either 'fixed' or 'floating'")
+    if any(param <= 0 for param in [S, K, T, sigma, n_simulations, n_steps]):
+        raise ValueError("S, K, T, sigma, n_simulations and n_steps must be positive.")
+
+    dt = T / n_steps
+    discount = np.exp(-r * T)
+
+    # Simulate asset paths
+    Z = np.random.normal(0, 1, size=(n_simulations, n_steps))
+    paths = np.zeros_like(Z)
+    paths[:, 0] = S
+
+    drift = (r - 0.5 * sigma**2) * dt
+    diffusion = sigma * np.sqrt(dt)
+
+    for t in range(1, n_steps):
+        paths[:, t] = paths[:, t - 1] * np.exp(drift + diffusion * Z[:, t])
+
+    S_T = paths[:, -1]
+    S_max = np.max(paths, axis=1)
+    S_min = np.min(paths, axis=1)
+
+    # Compute payoffs
+    if strike_type == "fixed":
+        payoffs = (
+            np.maximum(S_max - K, 0) if option_type == "call"
+            else np.maximum(K - S_min, 0)
+        )
+    else:  # floating
+        payoffs = (
+            np.maximum(S_T - S_min, 0) if option_type == "call"
+            else np.maximum(S_max - S_T, 0)
+        )
+
+    return discount * np.mean(payoffs)
+
