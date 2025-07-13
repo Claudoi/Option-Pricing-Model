@@ -31,6 +31,7 @@ def monte_carlo_asian(
     """
 
 
+
     # Validate input
 
     if option_type not in {"call", "put"}:
@@ -43,6 +44,7 @@ def monte_carlo_asian(
     diffusion = sigma * np.sqrt(dt)
     discount = np.exp(-r * T)
 
+
     # Simulate log-returns and build paths
 
     random_shocks = np.random.normal(0, 1, size=(n_simulations, n_steps))
@@ -50,11 +52,14 @@ def monte_carlo_asian(
     log_paths = np.cumsum(log_returns, axis=1)
     price_paths = S * np.exp(log_paths)
 
+
     # Average price over the path (excluding S at t=0)
 
     avg_prices = price_paths.mean(axis=1)
 
+
     # Payoffs
+    
     if option_type == "call":
         payoffs = np.maximum(avg_prices - K, 0)
     else:
@@ -142,6 +147,7 @@ def monte_carlo_lookback(
     dt = T / n_steps
     discount = np.exp(-r * T)
 
+
     # Simulate asset paths
     Z = np.random.normal(0, 1, size=(n_simulations, n_steps))
     paths = np.zeros_like(Z)
@@ -150,6 +156,7 @@ def monte_carlo_lookback(
     drift = (r - 0.5 * sigma**2) * dt
     diffusion = sigma * np.sqrt(dt)
 
+
     for t in range(1, n_steps):
         paths[:, t] = paths[:, t - 1] * np.exp(drift + diffusion * Z[:, t])
 
@@ -157,12 +164,14 @@ def monte_carlo_lookback(
     S_max = np.max(paths, axis=1)
     S_min = np.min(paths, axis=1)
 
+
     # Compute payoffs
     if strike_type == "fixed":
         payoffs = (
             np.maximum(S_max - K, 0) if option_type == "call"
             else np.maximum(K - S_min, 0)
         )
+
     else:  # floating
         payoffs = (
             np.maximum(S_T - S_min, 0) if option_type == "call"

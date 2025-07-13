@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def binomial_american(
     S: float,
     K: float,
@@ -23,21 +24,29 @@ def binomial_american(
     d = 1 / u
     p = (np.exp(r * dt) - d) / (u - d)
 
+
     # Build asset price tree
+
     asset_tree = np.zeros((N + 1, N + 1))
+
     for i in range(N + 1):
         for j in range(i + 1):
             asset_tree[j, i] = S * (u ** (i - j)) * (d ** j)
 
+
     # Initialize option values at maturity
+
     option_tree = np.zeros((N + 1, N + 1))
+
     for j in range(N + 1):
         if option_type == "call":
             option_tree[j, N] = max(0, asset_tree[j, N] - K)
         else:
             option_tree[j, N] = max(0, K - asset_tree[j, N])
 
+
     # Backward induction
+
     for i in range(N - 1, -1, -1):
         for j in range(i + 1):
             continuation = discount * (p * option_tree[j, i + 1] + (1 - p) * option_tree[j + 1, i + 1])
@@ -74,16 +83,22 @@ def binomial_european(
     d = 1 / u
     p = (np.exp(r * dt) - d) / (u - d)
 
+
     # Asset prices at maturity
+
     ST = np.array([S * (u ** (N - j)) * (d ** j) for j in range(N + 1)])
 
+
     # Option payoffs at maturity
+
     if option_type == "call":
         option_values = np.maximum(ST - K, 0)
     else:
         option_values = np.maximum(K - ST, 0)
 
+
     # Backward induction (no early exercise)
+    
     for i in range(N - 1, -1, -1):
         option_values = discount * (p * option_values[:-1] + (1 - p) * option_values[1:])
 

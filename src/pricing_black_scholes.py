@@ -40,7 +40,7 @@ def black_scholes(
     """
 
 
-    # --- Input validation ---
+    # Validation 
 
     if S <= 0 or K <= 0 or T <= 0 or sigma <= 0:
         raise ValueError("S, K, T and sigma must be positive and non-zero.")
@@ -50,7 +50,7 @@ def black_scholes(
         raise ValueError("option_type must be either 'call' or 'put'.")
 
 
-    # --- Calculations ---
+    # Calcs
 
     sqrt_T = np.sqrt(T)
     discounted_S = S * np.exp(-q * T)
@@ -59,7 +59,7 @@ def black_scholes(
     d2 = d1 - sigma * sqrt_T
 
 
-    # --- Payoff logic using dispatch dictionary ---
+    # Payoff logic 
 
     payoff = {
         "call": lambda: discounted_S * norm.cdf(d1) - K * np.exp(-r * T) * norm.cdf(d2),
