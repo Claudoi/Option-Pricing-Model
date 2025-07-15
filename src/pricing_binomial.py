@@ -1,11 +1,14 @@
 import numpy as np
+from src.constants import OPTION_TYPES
+
 
 
 def _validate_inputs(S: float, K: float, T: float, r: float, sigma: float, N: int, option_type: str):
     if S <= 0 or K <= 0 or T <= 0 or sigma <= 0 or N <= 0:
         raise ValueError("All input parameters must be positive and non-zero.")
-    if option_type not in {"call", "put"}:
+    if option_type not in OPTION_TYPES:
         raise ValueError("option_type must be either 'call' or 'put'.")
+
 
 
 def _binomial_parameters(T: float, r: float, sigma: float, N: int, q: float = 0.0):
@@ -15,6 +18,7 @@ def _binomial_parameters(T: float, r: float, sigma: float, N: int, q: float = 0.
     discount = np.exp(-r * dt)
     p = (np.exp((r - q) * dt) - d) / (u - d)
     return dt, u, d, p, discount
+
 
 
 def binomial_european(
@@ -28,35 +32,11 @@ def binomial_european(
     q: float = 0.0,
     return_tree: bool = False
 ) -> float | tuple[float, np.ndarray]:
+    
     """
     Compute the price of a European option using the binomial model.
-
-    Parameters
-    ----------
-    S : float
-        Current stock price
-    K : float
-        Strike price
-    T : float
-        Time to maturity (in years)
-    r : float
-        Risk-free interest rate
-    sigma : float
-        Volatility
-    N : int
-        Number of time steps
-    option_type : str
-        Either 'call' or 'put'
-    q : float
-        Continuous dividend yield
-    return_tree : bool
-        If True, also returns the final asset prices
-
-    Returns
-    -------
-    float or (float, np.ndarray)
-        Option price, and optionally terminal asset prices
     """
+    
     _validate_inputs(S, K, T, r, sigma, N, option_type)
     dt, u, d, p, discount = _binomial_parameters(T, r, sigma, N, q)
 
@@ -75,6 +55,7 @@ def binomial_european(
     return option_values[0]
 
 
+
 def binomial_american(
     S: float,
     K: float,
@@ -87,37 +68,9 @@ def binomial_american(
     return_tree: bool = False
 ) -> float | tuple[float, np.ndarray]:
     
-    
     """
     Compute the price of an American option using the binomial model.
-
-    Parameters
-    ----------
-    S : float
-        Current stock price
-    K : float
-        Strike price
-    T : float
-        Time to maturity (in years)
-    r : float
-        Risk-free interest rate
-    sigma : float
-        Volatility
-    N : int
-        Number of time steps
-    option_type : str
-        Either 'call' or 'put'
-    q : float
-        Continuous dividend yield
-    return_tree : bool
-        If True, also returns the asset price tree
-
-    Returns
-    -------
-    float or (float, np.ndarray)
-        Option price, and optionally the asset tree
     """
-
 
     _validate_inputs(S, K, T, r, sigma, N, option_type)
     dt, u, d, p, discount = _binomial_parameters(T, r, sigma, N, q)
@@ -148,6 +101,7 @@ def binomial_american(
     return option_tree[0, 0]
 
 
+
 def binomial_price_and_tree(
     S: float,
     K: float,
@@ -163,7 +117,6 @@ def binomial_price_and_tree(
     """
     Wrapper to compute either European or American option price and tree.
     """
-
 
     if american:
         return binomial_american(S, K, T, r, sigma, N, option_type, q, return_tree=True)

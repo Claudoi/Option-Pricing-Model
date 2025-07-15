@@ -1,5 +1,7 @@
 import numpy as np
 from scipy.stats import norm
+from src.constants import ONE_OVER_100, ONE_OVER_365
+
 
 
 def black_scholes(
@@ -64,16 +66,16 @@ def black_scholes_price_and_greeks(
         else np.exp(-q * T) * (norm.cdf(d1) - 1)
     )
     gamma = np.exp(-q * T) * norm.pdf(d1) / (S * sigma * sqrt_T)
-    vega = S * np.exp(-q * T) * norm.pdf(d1) * sqrt_T / 100
+    vega = S * np.exp(-q * T) * norm.pdf(d1) * sqrt_T * ONE_OVER_100
     theta = (
-        (-S * norm.pdf(d1) * sigma * np.exp(-q * T) / (2 * sqrt_T) - r * K * np.exp(-r * T) * norm.cdf(d2)) / 365
+        (-S * norm.pdf(d1) * sigma * np.exp(-q * T) / (2 * sqrt_T) - r * K * np.exp(-r * T) * norm.cdf(d2)) * ONE_OVER_365
         if option_type == "call"
-        else (-S * norm.pdf(d1) * sigma * np.exp(-q * T) / (2 * sqrt_T) + r * K * np.exp(-r * T) * norm.cdf(-d2)) / 365
+        else (-S * norm.pdf(d1) * sigma * np.exp(-q * T) / (2 * sqrt_T) + r * K * np.exp(-r * T) * norm.cdf(-d2)) * ONE_OVER_365
     )
     rho = (
-        K * T * np.exp(-r * T) * norm.cdf(d2) / 100
+        K * T * np.exp(-r * T) * norm.cdf(d2) * ONE_OVER_100
         if option_type == "call"
-        else -K * T * np.exp(-r * T) * norm.cdf(-d2) / 100
+        else -K * T * np.exp(-r * T) * norm.cdf(-d2) * ONE_OVER_100
     )
 
     return {
@@ -103,7 +105,7 @@ def implied_volatility_newton(
     """
     Estimate implied volatility using Newton-Raphson method.
     """
-
+    
     sigma = 0.2  # initial guess
     for i in range(max_iter):
         price = black_scholes(S, K, T, r, sigma, option_type, q)
