@@ -2,6 +2,7 @@ import numpy as np
 from scipy.stats import norm
 from src.constants import ONE_OVER_100, ONE_OVER_365
 
+
 class BlackScholesOption:
     def __init__(self, S, K, T, r, sigma, option_type="call", q=0.0):
         self.S = S
@@ -13,17 +14,21 @@ class BlackScholesOption:
         self.q = q
         self._validate_inputs()
 
+
     def _validate_inputs(self):
         if self.S <= 0 or self.K <= 0 or self.T <= 0 or self.sigma <= 0:
             raise ValueError("S, K, T and sigma must be positive and non-zero.")
         if self.option_type not in {"call", "put"}:
             raise ValueError("option_type must be either 'call' or 'put'.")
 
+
     def _d1(self):
         return (np.log(self.S / self.K) + (self.r - self.q + 0.5 * self.sigma ** 2) * self.T) / (self.sigma * np.sqrt(self.T))
 
+
     def _d2(self):
         return self._d1() - self.sigma * np.sqrt(self.T)
+
 
     def price(self):
         d1 = self._d1()
@@ -33,6 +38,7 @@ class BlackScholesOption:
             return discounted_S * norm.cdf(d1) - self.K * np.exp(-self.r * self.T) * norm.cdf(d2)
         else:
             return self.K * np.exp(-self.r * self.T) * norm.cdf(-d2) - discounted_S * norm.cdf(-d1)
+
 
     def greeks(self):
         d1 = self._d1()
@@ -64,6 +70,7 @@ class BlackScholesOption:
             "theta": theta,
             "rho": rho
         }
+
 
     @staticmethod
     def implied_volatility_newton(market_price, S, K, T, r, option_type="call", q=0.0, tol=1e-6, max_iter=100):

@@ -17,11 +17,13 @@ class MonteCarloOption:
         self.q = q
         self._validate_inputs()
 
+
     def _validate_inputs(self):
         if self.option_type not in OPTION_TYPES:
             raise ValueError("option_type must be 'call' or 'put'")
         if any(param <= 0 for param in [self.S, self.K, self.T, self.sigma, self.n_simulations, self.n_steps]):
             raise ValueError("All numeric inputs must be positive.")
+
 
     def price_asian(self):
         dt = self.T / self.n_steps
@@ -42,6 +44,7 @@ class MonteCarloOption:
 
         return discount * np.mean(payoffs)
 
+
     def price_asian_geometric(self):
         dt = self.T / self.n_steps
         drift = (self.r - 0.5 * self.sigma**2) * dt
@@ -60,6 +63,7 @@ class MonteCarloOption:
             payoffs = np.maximum(self.K - geo_avg, 0)
 
         return discount * np.mean(payoffs)
+
 
     def price_digital_barrier(self, barrier, barrier_type="up-and-in", payout=1.0):
         if barrier_type not in BARRIER_TYPES:
@@ -87,6 +91,7 @@ class MonteCarloOption:
         final_payoff = payout * (barrier_crossed & intrinsic)
         return discount * np.mean(final_payoff)
 
+
     def price_lookback(self, strike_type="fixed"):
         if strike_type not in STRIKE_TYPES:
             raise ValueError("strike_type must be either 'fixed' or 'floating'")
@@ -113,6 +118,7 @@ class MonteCarloOption:
 
         return discount * np.mean(payoffs)
 
+
     def price_vanilla(self):
         dt = self.T / self.n_steps
         drift = (self.r - 0.5 * self.sigma**2) * dt
@@ -131,7 +137,6 @@ class MonteCarloOption:
 
         return discount * np.mean(payoffs)
 
-    
 
     def barrier_knock_in_out_payoff_paths(
             self,
