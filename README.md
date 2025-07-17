@@ -1,57 +1,63 @@
 # Option Pricing Model
 
-This project implements a modular system in Python for the valuation of European, American, and exotic options. The goal is to provide a well-structured, testable, and extensible codebase that supports both educational use and professional financial analysis.
+This project implements a **modular and interactive system** in Python to price European, American, and exotic options. It is designed for educational purposes, quant research, and professional financial prototyping.
 
 
 ## Features
 
-- Black-Scholes model for European options
-- Binomial trees for American options
-- Monte Carlo simulations for exotic options (Asian, barrier, lookback)
-- Calculation of option Greeks (Delta, Gamma, Vega, Theta, Rho)
-- Interactive visualizations using Matplotlib and Plotly
-- Jupyter notebooks for step-by-step exploration
-- Streamlit web app prototype for user interaction
-- Unit testing for pricing functions
+- 📈 **Black-Scholes Model** (closed-form) for European options
+- 🌲 **Binomial Tree Model** for European and American options
+- 🎲 **Monte Carlo Simulation** for exotic options:
+  - Asian (arithmetic and geometric average)
+  - Lookback (fixed and floating)
+  - Digital barrier (knock-in, knock-out)
+- 🧮 **Greeks Calculation**: Delta, Gamma, Vega, Theta, Rho
+- ✅ Robust input validation and reusable utilities
+- 📊 **Interactive Interface with Streamlit**: explore and visualize models dynamically
+- 🧪 **Unit tests** for key pricing components
+- 📓 Jupyter notebooks for modular exploration
+- 🧱 Clean, extensible architecture ready for future extensions
 
 
-## Project Structure
+## 📁 Project Structure
 
 ```
 option-pricing-model/
 │
-├── notebooks/ # Jupyter notebooks for each model
+├── notebooks/ # Step-by-step exploration of models
 │ ├── 01_black_scholes.ipynb
 │ ├── 02_binomial_american.ipynb
-│ ├── ...
+│ ├── 03_monte_carlo_asian.ipynb
+│ ├── ... (others: barrier, lookback, greeks, interface)
 │
-├── src/ # Core pricing functions and helpers
+├── src/ # Core pricing logic
 │ ├── pricing_black_scholes.py
 │ ├── pricing_binomial.py
 │ ├── pricing_montecarlo.py
 │ ├── greeks.py
-│ ├── utils.py
+│ ├── constants.py
+│ └── utils.py
 │
 ├── tests/ # Unit tests
-│ └── test_pricing.py
+│ └── greeks_tests.py
+│ └── pricing_tests.py
 │
-├── webapp/ # Streamlit app
-│ └── app.py
-│
-├── data/ # Optional data files
-│ └── options_sample.csv
+├── webapp / # Streamlit web app
+├── app.py 
 │
 ├── requirements.txt # Dependencies
-├── .gitignore # Git ignore rules
-└── README.md # Project documentation
+├── data/ # Optional data files
+│ └── options_sample.csv
+└── README.md
 ```
+
 
 ## Installation
 
 Clone the repository and install dependencies:
 
 ```bash
-git clone https://github.com/your-username/option-pricing-model.git
+git clone https://github.com/Claudoi/option-pricing-model.git
 cd option-pricing-model
 pip install -r requirements.txt
 ```
@@ -60,39 +66,46 @@ Or create a virtual environment:
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
+source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
+
 ## Usage
 
-You can:
+### 1 - Run the app interactively
 
-- Run and explore the models in the Jupyter notebooks under notebooks/
-
-- Import pricing functions from src/ into other projects
-
-- Launch the interactive app (if developed) from webapp/app.py
-
-- Extend the codebase to support additional derivatives
-
-Example usage in Python:
-
-```python
-from src.pricing_black_scholes import black_scholes
-
-price = black_scholes(S=100, K=100, T=1, r=0.05, sigma=0.2, option_type='call')
-print(f"Call option price: {price:.2f}")
+```bash
+streamlit run app.py
 ```
 
+### 2 - Use notebooks for step-by-step exploration
 
-## Tests
+Open any notebook from /notebooks/ to study each pricing model in depth.
 
-Run unit tests using:
+### 3 - Use the pricing functions in your own code
+
+```python
+from src.pricing_black_scholes import BlackScholesOption
+
+bs = BlackScholesOption(S=100, K=100, T=1, r=0.05, sigma=0.2, option_type="call")
+price = bs.price()
+print(f"Call price: {price:.2f}")
+```
+
+### 4 - Run unit tests
 
 ```bash
 pytest tests/
 ```
+
+
+## 🧠 Future Ideas
+
+- Heston model, SABR or stochastic volatility
+- American options via Longstaff-Schwartz in Monte Carlo
+- Calibration to market data (implied volatility surface)
+- Portfolio-level VaR/ES
 
 
 ## License
@@ -101,4 +114,4 @@ MIT License
 
 
 ## Author
-Developed by Claudio Martel Flores
+Developed by Claudio Martel
