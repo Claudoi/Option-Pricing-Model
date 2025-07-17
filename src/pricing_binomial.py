@@ -1,9 +1,13 @@
 import numpy as np
-from src.constants import OPTION_TYPES
+from src.utils import (
+    validate_option_type,
+    validate_positive_inputs,
+    calculate_payoff
+)
 
 
 class BinomialOption:
-    
+
     def __init__(self, S, K, T, r, sigma, N, option_type="call", q=0.0):
         self.S = S
         self.K = K
@@ -17,10 +21,8 @@ class BinomialOption:
 
 
     def validate_inputs(self):
-        if self.S <= 0 or self.K <= 0 or self.T <= 0 or self.sigma <= 0 or self.N <= 0:
-            raise ValueError("All input parameters must be positive and non-zero.")
-        if self.option_type not in OPTION_TYPES:
-            raise ValueError("option_type must be either 'call' or 'put'.")
+        validate_option_type(self.option_type)
+        validate_positive_inputs(self.S, self.K, self.T, self.sigma, self.N)
 
 
     def price_european(self, return_tree=False):
@@ -32,10 +34,7 @@ class BinomialOption:
 
         ST = np.array([self.S * (u ** (self.N - j)) * (d ** j) for j in range(self.N + 1)])
 
-        if self.option_type == "call":
-            option_values = np.maximum(ST - self.K, 0)
-        else:
-            option_values = np.maximum(self.K - ST, 0)
+        option_values = calculate_payoff(ST, self.K, self.option_type)
 
         for i in range(self.N - 1, -1, -1):
             option_values = discount * (p * option_values[:-1] + (1 - p) * option_values[1:])
@@ -43,7 +42,7 @@ class BinomialOption:
         if return_tree:
             return option_values[0], ST
         return option_values[0]
-    
+
 
     def price_american(self, return_tree=False):
         dt = self.T / self.N
@@ -59,18 +58,12 @@ class BinomialOption:
 
         option_tree = np.zeros_like(asset_tree)
         for j in range(self.N + 1):
-            if self.option_type == "call":
-                option_tree[j, self.N] = max(0, asset_tree[j, self.N] - self.K)
-            else:
-                option_tree[j, self.N] = max(0, self.K - asset_tree[j, self.N])
+            option_tree[j, self.N] = calculate_payoff(asset_tree[j, self.N], self.K, self.option_type)
 
         for i in range(self.N - 1, -1, -1):
             for j in range(i + 1):
                 continuation = discount * (p * option_tree[j, i + 1] + (1 - p) * option_tree[j + 1, i + 1])
-                if self.option_type == "call":
-                    exercise = max(0, asset_tree[j, i] - self.K)
-                else:
-                    exercise = max(0, self.K - asset_tree[j, i])
+                exercise = calculate_payoff(asset_tree[j, i], self.K, self.option_type)
                 option_tree[j, i] = max(continuation, exercise)
 
         if return_tree:
