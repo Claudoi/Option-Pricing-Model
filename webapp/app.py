@@ -1,9 +1,16 @@
 import streamlit as st
 import numpy as np
+import matplotlib.pyplot as plt
+import sys
+import os
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 from src.pricing_black_scholes import BlackScholesOption
 from src.pricing_montecarlo import MonteCarloOption
 from src.pricing_binomial import BinomialOption
 from src.greeks import BlackScholesGreeks
+from mpl_toolkits.mplot3d import Axes3D
 
 
 class OptionPricingApp:
@@ -43,13 +50,38 @@ class OptionPricingApp:
                 self.sigma = st.number_input("Volatility (σ)", value=0.2)
                 self.q = st.number_input("Dividend yield (q)", value=0.0)
 
+            # Optional inputs for specific models
             if self.model == "Monte Carlo":
+                self.exotic_type = st.selectbox("Exotic option type", [
+                    "Vanilla",
+                    "Asian (arithmetic)",
+                    "Asian (geometric)",
+                    "Lookback (fixed)",
+                    "Lookback (floating)",
+                    "Digital Barrier (up-and-in)"
+                ])
                 self.n_sim = st.slider("Number of simulations", 1000, 100000, 10000, step=1000)
                 self.n_steps = st.slider("Number of steps", 10, 500, 100, step=10)
+
             elif "Binomial" in self.model:
                 self.N = st.slider("Number of binomial steps", 10, 500, 100, step=10)
 
+            # Optional implied volatility estimation (only for Black-Scholes)
+            if self.model == "Black-Scholes":
+                self.use_iv = st.checkbox("Estimate implied volatility from market price")
+                if self.use_iv:
+                    self.market_price = st.number_input("Market option price", min_value=0.01, value=10.0)
+
             self.submitted = st.form_submit_button("\U0001F4CA Calculate")
+
+    def plot_paths(self, paths):
+        fig, ax = plt.subplots(figsize=(8, 4))
+        for i in range(min(50, len(paths))):
+            ax.plot(paths[i], lw=0.5)
+        ax.set_title("Monte Carlo Simulated Paths")
+        ax.set_xlabel("Step")
+        ax.set_ylabel("Price")
+        st.pyplot(fig)
 
     def calculate(self):
         if not self.submitted:
@@ -57,16 +89,39 @@ class OptionPricingApp:
 
         try:
             if self.model == "Black-Scholes":
+                # If implied volatility estimation is enabled
+                if getattr(self, "use_iv", False):
+                    try:
+                        implied_vol = BlackScholesOption.implied_volatility_newton(
+                            market_price=self.market_price,
+                            S=self.S,
+                            K=self.K,
+                            T=self.T,
+                            r=self.r,
+                            option_type=self.option_type,
+                            q=self.q
+                        )
+                        st.success(f"Implied Volatility: {implied_vol:.4%}")
+                        self.sigma = implied_vol
+                    except Exception as e:
+                        st.warning(f"Could not compute implied volatility: {str(e)}")
+
+                # Create Black-Scholes option object
                 opt = BlackScholesOption(self.S, self.K, self.T, self.r, self.sigma, self.option_type, self.q)
                 price = opt.price()
                 greeks = opt.greeks()
 
+                # Display results
                 st.success(f"Black-Scholes Price: {price:.4f}")
-                st.markdown("**Greeks:**")
-                st.json(greeks)
+                st.markdown("### Greeks (from BlackScholesOption)")
+                col1, col2, col3 = st.columns(3)
+                col1.metric("Delta", round(greeks["delta"], 4))
+                col2.metric("Gamma", round(greeks["gamma"], 4))
+                col3.metric("Vega", round(greeks["vega"], 4))
+                col1.metric("Theta", round(greeks["theta"], 4))
+                col2.metric("Rho", round(greeks["rho"], 4))
 
-                # Optional: Add explicit greeks from greeks.py
-                st.markdown("**Explicit Greeks (from BlackScholesGreeks):**")
+                st.markdown("### Explicit Greeks (BlackScholesGreeks)")
                 greek_model = BlackScholesGreeks(self.S, self.K, self.T, self.r, self.sigma, self.option_type)
                 st.json({
                     "delta": greek_model.delta(),
@@ -76,10 +131,48 @@ class OptionPricingApp:
                     "rho": greek_model.rho()
                 })
 
+                # Save inputs for future plotting
+                st.session_state.submitted = True
+                st.session_state._last_S = self.S
+                st.session_state._last_K = self.K
+                st.session_state._last_T = self.T
+                st.session_state._last_r = self.r
+                st.session_state._last_sigma = self.sigma
+                st.session_state._last_option_type = self.option_type
+                st.session_state._last_q = self.q
+
+
+
+
             elif self.model == "Monte Carlo":
                 mc = MonteCarloOption(self.S, self.K, self.T, self.r, self.sigma, self.option_type, self.n_sim, self.n_steps, self.q)
-                price = mc.price_vanilla()
-                st.success(f"Monte Carlo Price: {price:.4f}")
+
+                if self.exotic_type == "Vanilla":
+                    price = mc.price_vanilla()
+                    paths = mc._simulate_paths()
+                    self.plot_paths(paths)
+                elif self.exotic_type == "Asian (arithmetic)":
+                    price = mc.price_asian()
+                    paths = mc._simulate_paths()
+                    self.plot_paths(paths)
+                elif self.exotic_type == "Asian (geometric)":
+                    price = mc.price_asian_geometric()
+                    paths = mc._simulate_paths()
+                    self.plot_paths(paths)
+                elif self.exotic_type == "Lookback (fixed)":
+                    price = mc.price_lookback(strike_type="fixed")
+                    paths = mc._simulate_paths()
+                    self.plot_paths(paths)
+                elif self.exotic_type == "Lookback (floating)":
+                    price = mc.price_lookback(strike_type="floating")
+                    paths = mc._simulate_paths()
+                    self.plot_paths(paths)
+                elif self.exotic_type == "Digital Barrier (up-and-in)":
+                    price = mc.price_digital_barrier(barrier=self.K * 1.1, barrier_type="up-and-in")
+                    paths = mc._simulate_paths()
+                    self.plot_paths(paths)
+
+                st.success(f"Monte Carlo {self.exotic_type} Price: {price:.4f}")
 
             elif self.model == "Binomial (European)":
                 bopt = BinomialOption(self.S, self.K, self.T, self.r, self.sigma, self.N, self.option_type, self.q)
@@ -95,7 +188,98 @@ class OptionPricingApp:
             st.error(f"Error during calculation: {str(e)}")
 
 
-if __name__ == "__main__":
-    app = OptionPricingApp()
-    app.run()
 
+
+def plot_price_vs_spot(K, T, r, sigma, option_type, q):
+    S_range = np.linspace(50, 150, 100)
+    prices = [BlackScholesOption(S, K, T, r, sigma, option_type, q).price() for S in S_range]
+
+    fig, ax = plt.subplots()
+    ax.plot(S_range, prices)
+    ax.set_title("Option Price vs Spot Price")
+    ax.set_xlabel("Spot Price (S)")
+    ax.set_ylabel("Option Price")
+    st.pyplot(fig)
+
+
+def plot_greeks_vs_spot(K, T, r, sigma, option_type, q):
+    S_range = np.linspace(50, 150, 100)
+    deltas, gammas = [], []
+
+    for S in S_range:
+        opt = BlackScholesOption(S, K, T, r, sigma, option_type, q)
+        greeks = opt.greeks()
+        deltas.append(greeks["delta"])
+        gammas.append(greeks["gamma"])
+
+    fig, ax = plt.subplots()
+    ax.plot(S_range, deltas, label="Delta")
+    ax.plot(S_range, gammas, label="Gamma")
+    ax.set_title("Greeks vs Spot Price")
+    ax.set_xlabel("Spot Price (S)")
+    ax.set_ylabel("Value")
+    ax.legend()
+    st.pyplot(fig)
+
+
+def plot_implied_vol_surface(S, r, option_type, q):
+    K_vals = np.linspace(80, 120, 20)
+    T_vals = np.linspace(0.1, 2.0, 20)
+    K_grid, T_grid = np.meshgrid(K_vals, T_vals)
+    IV_grid = np.zeros_like(K_grid)
+
+    for i in range(K_grid.shape[0]):
+        for j in range(K_grid.shape[1]):
+            K = K_grid[i, j]
+            T = T_grid[i, j]
+            try:
+                market_price = BlackScholesOption(S, K, T, r, 0.2, option_type, q).price()
+                iv = BlackScholesOption.implied_volatility_newton(market_price, S, K, T, r, option_type, q)
+                IV_grid[i, j] = iv
+            except Exception:
+                IV_grid[i, j] = np.nan
+
+    fig = plt.figure(figsize=(10, 6))
+    ax = fig.add_subplot(111, projection='3d')
+    ax.plot_surface(K_grid, T_grid, IV_grid, cmap="viridis")
+    ax.set_title("Implied Volatility Surface")
+    ax.set_xlabel("Strike (K)")
+    ax.set_ylabel("Maturity (T)")
+    ax.set_zlabel("IV")
+    st.pyplot(fig)
+        
+
+        
+if __name__ == "__main__":
+    OptionPricingApp()
+
+    # Optional plots after calculation, if inputs were submitted
+    if st.session_state.get("submitted", False):
+        st.markdown("### 📊 Graphs")
+        if st.checkbox("Show Price vs Spot Graph"):
+            plot_price_vs_spot(
+                st.session_state._last_K,
+                st.session_state._last_T,
+                st.session_state._last_r,
+                st.session_state._last_sigma,
+                st.session_state._last_option_type,
+                st.session_state._last_q
+            )
+
+        if st.checkbox("Show Delta & Gamma vs Spot Graph"):
+            plot_greeks_vs_spot(
+                st.session_state._last_K,
+                st.session_state._last_T,
+                st.session_state._last_r,
+                st.session_state._last_sigma,
+                st.session_state._last_option_type,
+                st.session_state._last_q
+            )
+
+        if st.checkbox("Show Implied Volatility Surface"):
+            plot_implied_vol_surface(
+                st.session_state._last_S,
+                st.session_state._last_r,
+                st.session_state._last_option_type,
+                st.session_state._last_q
+            )
