@@ -56,6 +56,7 @@ class OptionPricingApp:
                     "Vanilla",
                     "Asian (arithmetic)",
                     "Asian (geometric)",
+                    "American (Longstaff-Schwartz)",
                     "Lookback (fixed)",
                     "Lookback (floating)",
                     "Digital Barrier (up-and-in)"
@@ -145,34 +146,30 @@ class OptionPricingApp:
 
 
             elif self.model == "Monte Carlo":
-                mc = MonteCarloOption(self.S, self.K, self.T, self.r, self.sigma, self.option_type, self.n_sim, self.n_steps, self.q)
+                mc = MonteCarloOption(self.S, self.K, self.T, self.r, self.sigma, self.option_type,
+                                    self.n_sim, self.n_steps, self.q)
 
-                if self.exotic_type == "Vanilla":
-                    price = mc.price_vanilla()
-                    paths = mc._simulate_paths()
-                    self.plot_paths(paths)
-                elif self.exotic_type == "Asian (arithmetic)":
-                    price = mc.price_asian()
-                    paths = mc._simulate_paths()
-                    self.plot_paths(paths)
-                elif self.exotic_type == "Asian (geometric)":
-                    price = mc.price_asian_geometric()
-                    paths = mc._simulate_paths()
-                    self.plot_paths(paths)
-                elif self.exotic_type == "Lookback (fixed)":
-                    price = mc.price_lookback(strike_type="fixed")
-                    paths = mc._simulate_paths()
-                    self.plot_paths(paths)
-                elif self.exotic_type == "Lookback (floating)":
-                    price = mc.price_lookback(strike_type="floating")
-                    paths = mc._simulate_paths()
-                    self.plot_paths(paths)
-                elif self.exotic_type == "Digital Barrier (up-and-in)":
-                    price = mc.price_digital_barrier(barrier=self.K * 1.1, barrier_type="up-and-in")
-                    paths = mc._simulate_paths()
-                    self.plot_paths(paths)
+                # Mapeo de tipos de opción exótica a funciones de precio y opciones adicionales
+                exotic_pricers = {
+                    "Vanilla": lambda: mc.price_vanilla(),
+                    "Asian (arithmetic)": lambda: mc.price_asian(),
+                    "Asian (geometric)": lambda: mc.price_asian_geometric(),
+                    "American (Longstaff-Schwartz)": lambda: mc.price_american_lsm(),
+                    "Lookback (fixed)": lambda: mc.price_lookback(strike_type="fixed"),
+                    "Lookback (floating)": lambda: mc.price_lookback(strike_type="floating"),
+                    "Digital Barrier (up-and-in)": lambda: mc.price_digital_barrier(barrier=self.K * 1.1, barrier_type="up-and-in"),
+                    "Digital Barrier (up-and-out)": lambda: mc.price_digital_barrier(barrier=self.K * 1.1, barrier_type="up-and-out"),
+                    "Digital Barrier (down-and-in)": lambda: mc.price_digital_barrier(barrier=self.K * 0.9, barrier_type="down-and-in"),
+                    "Digital Barrier (down-and-out)": lambda: mc.price_digital_barrier(barrier=self.K * 0.9, barrier_type="down-and-out")
+                }
 
-                st.success(f"Monte Carlo {self.exotic_type} Price: {price:.4f}")
+                if self.exotic_type in exotic_pricers:
+                    price = exotic_pricers[self.exotic_type]()
+                    paths = mc._simulate_paths()
+                    self.plot_paths(paths)
+                    st.success(f"Monte Carlo {self.exotic_type} Price: {price:.4f}")
+                else:
+                    st.warning(f"Exotic option type '{self.exotic_type}' is not implemented.")
 
             elif self.model == "Binomial (European)":
                 bopt = BinomialOption(self.S, self.K, self.T, self.r, self.sigma, self.N, self.option_type, self.q)

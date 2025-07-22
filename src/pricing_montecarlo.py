@@ -109,6 +109,40 @@ class MonteCarloOption:
 
         final_payoff = payout * (payoffs & hit_barrier)
         return discount * np.mean(final_payoff)
+    
+    def price_american_lsm(self, poly_degree=2):
+        dt = self.T / self.n_steps
+        discount = np.exp(-self.r * dt)
+        paths = self._simulate_paths()
+        
+        if self.option_type == 'call':
+            payoff = lambda S: np.maximum(S - self.K, 0)
+        else:
+            payoff = lambda S: np.maximum(self.K - S, 0)
+
+        cashflows = payoff(paths[:, -1])
+        
+        for t in reversed(range(1, self.n_steps)):
+            S_t = paths[:, t]
+            in_the_money = payoff(S_t) > 0
+            X = S_t[in_the_money]
+            Y = cashflows[in_the_money] * discount
+            
+            if len(X) == 0:
+                continue
+            
+            coeffs = np.polyfit(X, Y, deg=poly_degree)
+            continuation_value = np.polyval(coeffs, X)
+            
+            exercise_value = payoff(X)
+            exercise = exercise_value > continuation_value
+            
+            exercise_indices = np.where(in_the_money)[0][exercise]
+            cashflows[exercise_indices] = exercise_value[exercise]
+            cashflows[~np.isin(np.arange(len(paths)), exercise_indices)] *= discount
+
+        return np.mean(cashflows) * np.exp(-self.r * dt)
+
 
     def greek(self, greek, h=DEFAULT_H):
         if greek == "delta":
