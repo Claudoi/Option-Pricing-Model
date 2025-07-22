@@ -103,7 +103,6 @@ pytest tests/
 ## 🧠 Future Ideas
 
 - Heston model, SABR or stochastic volatility
-- American options via Longstaff-Schwartz in Monte Carlo
 - Calibration to market data (implied volatility surface)
 - Portfolio-level VaR/ES
 
