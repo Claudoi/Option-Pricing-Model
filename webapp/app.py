@@ -7,7 +7,7 @@ from src.pricing_black_scholes import BlackScholesOption
 from src.pricing_montecarlo import MonteCarloOption
 from src.pricing_binomial import BinomialOption
 from src.greeks import BlackScholesGreeks
-from src.risk_analysis import  PortfolioVaR, HistoricalVaR, MonteCarloVaR
+from src.risk_analysis import  PortfolioVaR, HistoricalVaR, MonteCarloVaR, RollingVaR
 from src.volatility_surface import VolatilitySurface
 from src.utils import fetch_returns_from_yahoo
 
@@ -80,15 +80,25 @@ class OptionPricingApp:
 
         
             elif self.model == "Risk Analysis":
-                self.risk_method = st.selectbox("Risk method", ["Parametric", "Historical", "Monte Carlo"])
+                self.risk_method = st.selectbox(
+                    "Risk method",
+                    ["Parametric", "Historical", "Monte Carlo", "Rolling VaR (EWMA)", "Rolling VaR (GARCH)"]
+                )
                 self.confidence_level = st.slider("Confidence Level", 0.80, 0.99, 0.95, step=0.01)
                 self.holding_period = st.number_input("Holding period (days)", min_value=1, value=1)
                 self.tickers = st.text_input("Enter asset tickers (comma-separated)", value="NVDA")
                 self.start_date = st.date_input("Start date")
                 self.end_date = st.date_input("End date")
-                
+
                 if self.risk_method == "Monte Carlo":
                     self.n_sim = st.slider("Number of simulations", 1000, 50000, 10000, step=1000)
+
+                elif self.risk_method == "Rolling VaR (EWMA)":
+                    self.lambda_ = st.slider("Lambda (EWMA decay)", 0.80, 0.99, 0.94, step=0.01)
+                    self.window = st.number_input("Window size", min_value=30, value=100)
+
+                elif self.risk_method == "Rolling VaR (GARCH)":
+                    self.window = st.number_input("Window size", min_value=30, value=100)
 
 
             self.submitted = st.form_submit_button("\U0001F4CA Calculate")
@@ -280,11 +290,64 @@ class OptionPricingApp:
                         )
                         st.plotly_chart(fig, use_container_width=True)
 
+
+                    elif self.risk_method.startswith("Rolling VaR"):
+
+                        portfolio_returns = returns @ weights
+                        method = "ewma" if "EWMA" in self.risk_method else "garch"
+                        lambda_ = getattr(self, "lambda_", 0.94)
+
+                        if len(portfolio_returns) < self.window:
+                            st.warning("⚠️ Not enough data to compute Rolling VaR. Increase the date range or reduce the window size.")
+                            return
+
+                        try:
+                            model = RollingVaR(
+                                returns=portfolio_returns,
+                                method=method,
+                                lambda_=lambda_,
+                                window=self.window,
+                                confidence_level=self.confidence_level
+                            )
+                            var_series = model.calculate_var_series()
+
+                            if method == "ewma":
+                                st.success(f"EWMA Rolling VaR (last value): {var_series[-1]:.4f}")
+                            else:
+                                st.success(f"GARCH VaR (1-day ahead): {var_series:.4f}")
+
+                            # Plot only if EWMA
+                            if method == "ewma":
+                                fig = go.Figure()
+                                fig.add_trace(go.Scatter(y=var_series, mode="lines", name="Rolling VaR (EWMA)"))
+                                fig.update_layout(
+                                    title="Rolling Value at Risk",
+                                    xaxis_title="Time",
+                                    yaxis_title="VaR",
+                                    template="plotly_dark"
+                                )
+                                st.plotly_chart(fig, use_container_width=True)
+
+                            else:
+                                    fig = go.Figure()
+                                    fig.add_trace(go.Bar(y=[var_series], name="GARCH VaR (1-day ahead)"))
+                                    fig.update_layout(
+                                        title="GARCH VaR (1-day ahead forecast)",
+                                        yaxis_title="VaR",
+                                        template="plotly_dark"
+                                    )
+                                    st.plotly_chart(fig, use_container_width=True)
+
+                        except Exception as e:
+                            st.warning("⚠️ Rolling VaR calculation failed.")
+                            st.code(str(e))
+
+
+
                 except Exception as e:
                     st.error("⚠️ Error during risk analysis.")
                     st.code(str(e))
                     st.info("🔎 Please check:\n- That all tickers are valid.\n- That the date range includes trading days.\n- That the API returned price data.")
-
 
 
         except Exception as e:
