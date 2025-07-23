@@ -7,16 +7,22 @@ This project implements a **modular and interactive system** in Python to price 
 
 - 📈 **Black-Scholes Model** (closed-form) for European options
 - 🌲 **Binomial Tree Model** for European and American options
-- 🎲 **Monte Carlo Simulation** for exotic options:
+- 🎲 **Monte Carlo Simulation** for exotic and American options:
   - Asian (arithmetic and geometric average)
   - Lookback (fixed and floating)
   - Digital barrier (knock-in, knock-out)
+  - American options via Longstaff-Schwartz (LSM)
 - 🧮 **Greeks Calculation**: Delta, Gamma, Vega, Theta, Rho
-- ✅ Robust input validation and reusable utilities
-- 📊 **Interactive Interface with Streamlit**: explore and visualize models dynamically
-- 🧪 **Unit tests** for key pricing components
-- 📓 Jupyter notebooks for modular exploration
-- 🧱 Clean, extensible architecture ready for future extensions
+- 📊 **Risk Analysis** with VaR and ES:
+  - Parametric (variance-covariance)
+  - Historical
+  - Monte Carlo simulation-based
+  - 🔗 Automatic data from Yahoo Finance (no CSV upload needed)
+- ✅ Robust input validation and reusable utility functions
+- 📓 Jupyter notebooks for step-by-step model exploration
+- 🧪 Unit tests for core pricing and risk components
+- 🧱 Clean, extensible architecture
+- 🖥️ Streamlit-based interactive web app
 
 
 ## 📁 Project Structure
@@ -36,6 +42,7 @@ option-pricing-model/
 │ ├── pricing_montecarlo.py
 │ ├── greeks.py
 │ ├── constants.py
+│ ├── risk_analysis.py
 │ └── utils.py
 │
 ├── tests/ # Unit tests
@@ -102,9 +109,10 @@ pytest tests/
 
 ## 🧠 Future Ideas
 
-- Heston model, SABR or stochastic volatility
-- Calibration to market data (implied volatility surface)
-- Portfolio-level VaR/ES
+- Volatility surface calibration to real market data
+- Real-time portfolio tracking and intraday VaR
+- Rolling VaR with EWMA or GARCH
+- Stress testing and scenario-based risk modeling
 
 
 ## License

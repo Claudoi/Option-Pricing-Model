@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys
 import os
+import pandas as pd
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
@@ -34,7 +35,8 @@ class OptionPricingApp:
             "Black-Scholes",
             "Monte Carlo",
             "Binomial (European)",
-            "Binomial (American)"
+            "Binomial (American)",
+            "Risk Analysis"
         ])
 
     def collect_inputs(self):
@@ -50,6 +52,7 @@ class OptionPricingApp:
                 self.sigma = st.number_input("Volatility (σ)", value=0.2)
                 self.q = st.number_input("Dividend yield (q)", value=0.0)
 
+
             # Optional inputs for specific models
             if self.model == "Monte Carlo":
                 self.exotic_type = st.selectbox("Exotic option type", [
@@ -64,16 +67,32 @@ class OptionPricingApp:
                 self.n_sim = st.slider("Number of simulations", 1000, 100000, 10000, step=1000)
                 self.n_steps = st.slider("Number of steps", 10, 500, 100, step=10)
 
+
             elif "Binomial" in self.model:
                 self.N = st.slider("Number of binomial steps", 10, 500, 100, step=10)
 
+
             # Optional implied volatility estimation (only for Black-Scholes)
-            if self.model == "Black-Scholes":
+            elif self.model == "Black-Scholes":
                 self.use_iv = st.checkbox("Estimate implied volatility from market price")
                 if self.use_iv:
                     self.market_price = st.number_input("Market option price", min_value=0.01, value=10.0)
 
+        
+            elif self.model == "Risk Analysis":
+                self.risk_method = st.selectbox("Risk method", ["Parametric", "Historical", "Monte Carlo"])
+                self.confidence_level = st.slider("Confidence Level", 0.80, 0.99, 0.95, step=0.01)
+                self.holding_period = st.number_input("Holding period (days)", min_value=1, value=1)
+                self.tickers = st.text_input("Enter asset tickers (comma-separated)", value="AAPL,MSFT,GOOGL")
+                self.start_date = st.date_input("Start date")
+                self.end_date = st.date_input("End date")
+                
+                if self.risk_method == "Monte Carlo":
+                    self.n_sim = st.slider("Number of simulations", 1000, 50000, 10000, step=1000)
+
+
             self.submitted = st.form_submit_button("\U0001F4CA Calculate")
+
 
     def plot_paths(self, paths):
         fig, ax = plt.subplots(figsize=(8, 4))
@@ -149,7 +168,7 @@ class OptionPricingApp:
                 mc = MonteCarloOption(self.S, self.K, self.T, self.r, self.sigma, self.option_type,
                                     self.n_sim, self.n_steps, self.q)
 
-                # Mapeo de tipos de opción exótica a funciones de precio y opciones adicionales
+                # Map exotic option types to pricing methods
                 exotic_pricers = {
                     "Vanilla": lambda: mc.price_vanilla(),
                     "Asian (arithmetic)": lambda: mc.price_asian(),
@@ -171,20 +190,106 @@ class OptionPricingApp:
                 else:
                     st.warning(f"Exotic option type '{self.exotic_type}' is not implemented.")
 
+
+
             elif self.model == "Binomial (European)":
                 bopt = BinomialOption(self.S, self.K, self.T, self.r, self.sigma, self.N, self.option_type, self.q)
                 price = bopt.price_european()
                 st.success(f"Binomial European Price: {price:.4f}")
+
+
 
             elif self.model == "Binomial (American)":
                 bopt = BinomialOption(self.S, self.K, self.T, self.r, self.sigma, self.N, self.option_type, self.q)
                 price = bopt.price_american()
                 st.success(f"Binomial American Price: {price:.4f}")
 
+
+
+            elif self.model == "Risk Analysis":
+                if not self.tickers:
+                    st.warning("Please enter at least one ticker.")
+                    return
+
+                try:
+                    tickers_list = [t.strip().upper() for t in self.tickers.split(",")]
+                    from src.utils import fetch_returns_from_yahoo
+
+                    df_returns = fetch_returns_from_yahoo(tickers_list, str(self.start_date), str(self.end_date))
+                    returns = df_returns.values
+                    assets = df_returns.columns
+                    n_assets = len(assets)
+
+                    # Equal weights if no other information is provided
+                    weights = np.ones(n_assets) / n_assets
+
+                    if self.risk_method == "Parametric":
+                        from src.risk_analysis import PortfolioVaR
+                        model = PortfolioVaR(pd.DataFrame(returns, columns=assets), weights,
+                                            confidence_level=self.confidence_level,
+                                            holding_period=self.holding_period)
+                        var = model.calculate_var()
+                        st.success(f"Parametric VaR: {var:.4f}")
+
+
+                    elif self.risk_method == "Historical":
+                        from src.risk_analysis import HistoricalVaR
+                        portfolio_returns = returns @ weights
+                        model = HistoricalVaR(portfolio_returns, confidence_level=self.confidence_level)
+                        var = model.calculate_var()
+                        es = model.calculate_es()
+                        st.success(f"Historical VaR: {var:.4f}")
+                        st.info(f"Expected Shortfall (ES): {es:.4f}")
+
+
+                        # Histogram of losses
+                        fig, ax = plt.subplots()
+                        ax.hist(portfolio_returns, bins=50, color="skyblue", edgecolor="black", alpha=0.7)
+                        ax.axvline(-var, color="red", linestyle="--", label=f"VaR ({self.confidence_level:.0%})")
+                        ax.axvline(-es, color="orange", linestyle="--", label="ES")
+                        ax.set_title("Historical Portfolio Return Distribution")
+                        ax.set_xlabel("Return")
+                        ax.set_ylabel("Frequency")
+                        ax.legend()
+                        st.pyplot(fig)
+
+
+                    elif self.risk_method == "Monte Carlo":
+                        from src.risk_analysis import MonteCarloVaR
+                        mu = returns.mean(axis=0)
+                        sigma = returns.std(axis=0)
+                        S0 = df_returns.iloc[-1].values
+
+                        model = MonteCarloVaR(
+                            S0, mu, sigma, weights,
+                            T=self.holding_period / 252,
+                            confidence_level=self.confidence_level,
+                            n_sim=self.n_sim
+                        )
+                        var, es, simulated_returns = model.calculate_var_es()
+                        st.success(f"Monte Carlo VaR: {var:.4f}")
+                        st.info(f"Expected Shortfall (ES): {es:.4f}")
+
+                        # Visualization of simulated losses
+                        fig, ax = plt.subplots()
+                        ax.hist(simulated_returns, bins=50, color="skyblue", edgecolor="black", alpha=0.7)
+                        ax.axvline(-var, color="red", linestyle="--", label=f"VaR ({self.confidence_level:.0%})")
+                        ax.axvline(-es, color="orange", linestyle="--", label="ES")
+                        ax.set_title("Monte Carlo Simulated Portfolio Returns")
+                        ax.set_xlabel("Return")
+                        ax.set_ylabel("Frequency")
+                        ax.legend()
+                        st.pyplot(fig)
+
+                except Exception as e:
+                   st.error("⚠️ Error during risk analysis.")
+                   st.code(str(e))
+                   st.info("🔎 Please check:\n- That all tickers are valid.\n- That the date range includes trading days.\n- That the API returned price data.")
+
+
+
         except Exception as e:
             st.error(f"Error during calculation: {str(e)}")
-
-
 
 
 def plot_price_vs_spot(K, T, r, sigma, option_type, q):
