@@ -1,28 +1,36 @@
 # Option Pricing Model
 
-This project implements a **modular and interactive system** in Python to price European, American, and exotic options. It is designed for educational purposes, quant research, and professional financial prototyping.
+This project implements a **modular and interactive platform** for pricing European, American, and exotic options and performing advanced portfolio risk analysis. Designed for **educational use, quant research, and professional prototyping**, it includes a Streamlit web app, reusable pricing/risk modules, and detailed notebooks.
 
 
 ## Features
 
-- 📈 **Black-Scholes Model** (closed-form) for European options
-- 🌲 **Binomial Tree Model** for European and American options
-- 🎲 **Monte Carlo Simulation** for exotic and American options:
+- 📈 Black-Scholes Model (closed-form) for European options
+- 🌲 Binomial Tree Model for European and American options
+- 🎲 Monte Carlo Simulation for exotic and American options:
   - Asian (arithmetic and geometric average)
   - Lookback (fixed and floating)
-  - Digital barrier (knock-in, knock-out)
+  - Digital barrier options (knock-in, knock-out)
   - American options via Longstaff-Schwartz (LSM)
-- 🧮 **Greeks Calculation**: Delta, Gamma, Vega, Theta, Rho
-- 📊 **Risk Analysis** with VaR and ES:
+- 🧮 Greeks Calculation: Delta, Gamma, Vega, Theta, Rho
+- 📊 Risk Analysis with VaR and Expected Shortfall (ES):
   - Parametric (variance-covariance)
   - Historical
   - Monte Carlo simulation-based
-  - 🔗 Automatic data from Yahoo Finance (no CSV upload needed)
-- ✅ Robust input validation and reusable utility functions
-- 📓 Jupyter notebooks for step-by-step model exploration
-- 🧪 Unit tests for core pricing and risk components
-- 🧱 Clean, extensible architecture
-- 🖥️ Streamlit-based interactive web app
+  - Rolling VaR with:
+    - EWMA (Exponentially Weighted Moving Average)
+    - GARCH(1,1)
+- 📉 Stress Testing: custom loss estimation under defined shock scenarios
+- 📐 Risk Ratios Calculation:
+  - Sharpe Ratio, Sortino Ratio, Calmar Ratio, Omega Ratio
+  - Information Ratio, Skewness, Kurtosis
+  - Max Drawdown, Value at Risk, Expected Shortfall
+  - 📊 Includes dynamic bar chart visualization of all ratios
+- 🔗 Automatic price data download from Yahoo Finance (no manual CSV uploads)
+- 📓 Jupyter notebooks for step-by-step exploration of all pricing and risk models
+- 🧪 Unit tests for core pricing and risk analytics functionality
+- 🧱 Modular architecture, designed for reusability and expansion
+- 🖥️ Streamlit-based web application with user-friendly UI
 
 
 ## 📁 Project Structure
@@ -43,6 +51,7 @@ option-pricing-model/
 │ ├── greeks.py
 │ ├── constants.py
 │ ├── risk_analysis.py
+│ ├── risk_ratios.py
 │ └── utils.py
 │
 ├── tests/ # Unit tests
@@ -109,10 +118,11 @@ pytest tests/
 
 ## 🧠 Future Ideas
 
-- Volatility surface calibration to real market data
-- Real-time portfolio tracking and intraday VaR
-- Rolling VaR with EWMA or GARCH
-- Stress testing and scenario-based risk modeling
+- Volatility Surface Calibration using market option data (e.g., SVI or SABR models)
+- Local and Stochastic Volatility Models such as Heston or Dupire
+- Delta Hedging Simulator to evaluate dynamic hedging performance
+- Portfolio Optimization with risk-adjusted objective functions (e.g., CVaR, Sharpe)
+- Intraday Risk Monitoring with real-time rolling VaR and Expected Shortfall
 
 
 ## License

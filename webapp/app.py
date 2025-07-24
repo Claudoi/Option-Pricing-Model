@@ -8,6 +8,7 @@ from src.pricing_montecarlo import MonteCarloOption
 from src.pricing_binomial import BinomialOption
 from src.greeks import BlackScholesGreeks
 from src.risk_analysis import  PortfolioVaR, HistoricalVaR, MonteCarloVaR, RollingVaR, StressTester
+from src.risk_ratios import  RiskRatios
 from src.volatility_surface import VolatilitySurface
 from src.utils import fetch_returns_from_yahoo
 
@@ -99,6 +100,8 @@ class OptionPricingApp:
 
                 elif self.risk_method == "Rolling VaR (GARCH)":
                     self.window = st.number_input("Window size", min_value=30, value=100)
+
+                self.show_ratios = st.checkbox("Show Risk Ratios")
 
 
             self.submitted = st.form_submit_button("\U0001F4CA Calculate")
@@ -385,6 +388,62 @@ class OptionPricingApp:
                             template="plotly_dark"
                         )
                         st.plotly_chart(fig, use_container_width=True)
+
+
+                                   
+                    if self.show_ratios:
+                        try:
+                            from src.risk_ratios import RiskRatios
+
+                            portfolio_returns = returns @ weights
+
+                            # ⚠️ Asegúrate de tener conexión para obtener SPY como benchmark
+                            benchmark_df = fetch_returns_from_yahoo(["SPY"], str(self.start_date), str(self.end_date))
+                            benchmark_returns = benchmark_df["SPY"].values
+
+                            ratios = RiskRatios(
+                                returns=portfolio_returns,
+                                benchmark_returns=benchmark_returns,
+                                risk_free_rate=getattr(self, "risk_free_rate", 0.01)
+                            )
+
+                            st.subheader("📊 Risk Ratios")
+
+                            ratio_dict = {
+                                "Sharpe Ratio": ratios.sharpe_ratio(),
+                                "Sortino Ratio": ratios.sortino_ratio(),
+                                "Information Ratio": ratios.information_ratio(),
+                                "Calmar Ratio": ratios.calmar_ratio(),
+                                "Omega Ratio": ratios.omega_ratio(),
+                                "Skewness": ratios.skewness(),
+                                "Kurtosis": ratios.kurtosis(),
+                                "Max Drawdown": ratios.max_drawdown(),
+                                "VaR (5%)": ratios.value_at_risk(),
+                                "Expected Shortfall (5%)": ratios.expected_shortfall()
+                            }
+
+                            for name, val in ratio_dict.items():
+                                st.markdown(f"- **{name}**: {val:.4f}")
+
+                            # 📈 Bar chart
+                            fig = go.Figure()
+                            fig.add_trace(go.Bar(
+                                x=list(ratio_dict.keys()),
+                                y=list(ratio_dict.values()),
+                                marker_color="mediumpurple"
+                            ))
+                            fig.update_layout(
+                                title="Risk Ratios Overview",
+                                xaxis_title="Ratio",
+                                yaxis_title="Value",
+                                template="plotly_dark"
+                            )
+                            st.plotly_chart(fig, use_container_width=True)
+
+                        except Exception as e:
+                            st.warning("⚠️ Could not calculate risk ratios.")
+                            st.code(str(e))
+
 
 
 
