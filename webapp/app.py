@@ -7,7 +7,7 @@ from src.pricing_black_scholes import BlackScholesOption
 from src.pricing_montecarlo import MonteCarloOption
 from src.pricing_binomial import BinomialOption
 from src.greeks import BlackScholesGreeks
-from src.risk_analysis import  PortfolioVaR, HistoricalVaR, MonteCarloVaR, RollingVaR
+from src.risk_analysis import  PortfolioVaR, HistoricalVaR, MonteCarloVaR, RollingVaR, StressTester
 from src.volatility_surface import VolatilitySurface
 from src.utils import fetch_returns_from_yahoo
 
@@ -237,7 +237,9 @@ class OptionPricingApp:
                                             confidence_level=self.confidence_level,
                                             holding_period=self.holding_period)
                         var = model.calculate_var()
+                        es = model.calculate_es()
                         st.success(f"Parametric VaR: {var:.4f}")
+                        st.info(f"Expected Shortfall (ES): {es:.4f}")
 
 
                     elif self.risk_method == "Historical":
@@ -342,6 +344,22 @@ class OptionPricingApp:
                             st.warning("⚠️ Rolling VaR calculation failed.")
                             st.code(str(e))
 
+
+                    elif self.risk_method == "Stress Testing":
+
+                        shock_input = st.text_area("Define shock scenario (e.g., NVDA:-0.10, AAPL:-0.05)")
+                        
+                        try:
+                            shock_dict = {item.split(":")[0].strip().upper(): float(item.split(":")[1]) for item in shock_input.split(",")}
+                            from src.risk_analysis import StressTester
+                            tester = StressTester(df_returns, weights)
+                            mean, std = tester.apply_shock(shock_dict)
+                            st.success(f"Expected return under stress: {mean:.4f}")
+                            st.info(f"Volatility under stress: {std:.4f}")
+                        
+                        except Exception as e:
+                            st.error("⚠️ Invalid shock input.")
+                            st.code(str(e))
 
 
                 except Exception as e:

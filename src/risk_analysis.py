@@ -36,6 +36,16 @@ class PortfolioVaR:
         var = -portfolio_mean * self.holding_period + \
               portfolio_std * np.sqrt(self.holding_period) * norm.ppf(1 - self.confidence_level)
         return var
+    
+    def calculate_es(self) -> float:
+        from scipy.stats import norm
+        portfolio_mean = np.dot(self.weights, self.returns_df.mean())
+        portfolio_std = np.sqrt(np.dot(self.weights.T, np.dot(self.returns_df.cov(), self.weights)))
+        alpha = 1 - self.confidence_level
+        es = -portfolio_mean + portfolio_std * norm.pdf(norm.ppf(alpha)) / alpha
+        es *= self.holding_period ** 0.5
+        return es
+
 
 
 class HistoricalVaR:
@@ -145,3 +155,20 @@ class RollingVaR:
             forecasts = res.forecast(horizon=1, reindex=False)
             var = z * np.sqrt(forecasts.variance.values[-1, 0]) / 100
             return var
+
+
+class StressTester:
+
+    def __init__(self, prices_df: pd.DataFrame, weights: np.ndarray):
+        self.prices = prices_df
+        self.weights = weights
+
+    def apply_shock(self, shock: dict) -> float:
+        shocked_prices = self.prices.copy()
+        for ticker, pct_change in shock.items():
+            if ticker in shocked_prices.columns:
+                shocked_prices[ticker] *= (1 + pct_change)
+
+        returns = shocked_prices.pct_change().dropna()
+        portfolio_returns = returns @ self.weights
+        return portfolio_returns.mean(), portfolio_returns.std()
