@@ -82,7 +82,7 @@ class OptionPricingApp:
             elif self.model == "Risk Analysis":
                 self.risk_method = st.selectbox(
                     "Risk method",
-                    ["Parametric", "Historical", "Monte Carlo", "Rolling VaR (EWMA)", "Rolling VaR (GARCH)"]
+                    ["Parametric", "Historical", "Monte Carlo", "Rolling VaR (EWMA)", "Rolling VaR (GARCH)", "Stress Testing"]
                 )
                 self.confidence_level = st.slider("Confidence Level", 0.80, 0.99, 0.95, step=0.01)
                 self.holding_period = st.number_input("Holding period (days)", min_value=1, value=1)
@@ -346,20 +346,46 @@ class OptionPricingApp:
 
 
                     elif self.risk_method == "Stress Testing":
+                        portfolio_returns = returns @ weights
+                        base_value = 1_000_000  # Valor del portafolio, puedes hacerlo input
 
-                        shock_input = st.text_area("Define shock scenario (e.g., NVDA:-0.10, AAPL:-0.05)")
-                        
-                        try:
-                            shock_dict = {item.split(":")[0].strip().upper(): float(item.split(":")[1]) for item in shock_input.split(",")}
-                            from src.risk_analysis import StressTester
-                            tester = StressTester(df_returns, weights)
-                            mean, std = tester.apply_shock(shock_dict)
-                            st.success(f"Expected return under stress: {mean:.4f}")
-                            st.info(f"Volatility under stress: {std:.4f}")
-                        
-                        except Exception as e:
-                            st.error("⚠️ Invalid shock input.")
-                            st.code(str(e))
+                        # Define escenarios de stress
+                        scenarios = {
+                            "Mild Shock (-2%)": -0.02,
+                            "Moderate Shock (-5%)": -0.05,
+                            "Severe Shock (-10%)": -0.10,
+                            "Extreme Shock (-20%)": -0.20,
+                        }
+
+                        st.subheader("📉 Stress Scenarios")
+
+                        stress_results = {}
+                        for name, shock in scenarios.items():
+                            shocked_returns = portfolio_returns + shock  # Simulación simple
+                            new_value = base_value * (1 + shocked_returns.mean())
+                            loss = base_value - new_value
+                            stress_results[name] = loss
+
+                        # Mostrar resultados
+                        for scenario, loss in stress_results.items():
+                            st.info(f"{scenario}: Estimated Loss = ${loss:,.2f}")
+
+                        # Plotly bar chart
+                        fig = go.Figure()
+                        fig.add_trace(go.Bar(
+                            x=list(stress_results.keys()),
+                            y=list(stress_results.values()),
+                            name="Loss",
+                            marker_color="crimson"
+                        ))
+                        fig.update_layout(
+                            title="Stress Testing Results",
+                            xaxis_title="Scenario",
+                            yaxis_title="Estimated Portfolio Loss",
+                            template="plotly_dark"
+                        )
+                        st.plotly_chart(fig, use_container_width=True)
+
 
 
                 except Exception as e:
