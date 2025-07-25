@@ -4,6 +4,11 @@ import plotly.graph_objs as go
 
 from src.volatility.stochastic_volatility import HestonModel
 from src.models.pricing_black_scholes import BlackScholesOption
+from src.models.implied_volatility import (
+    implied_volatility_newton,
+    implied_volatility_bisection,
+    implied_volatility_vectorized,
+)
 
 
 def plot_black_scholes_heatmaps(K, T, r, q, S_min, S_max, sigma_min, sigma_max, resolution=50):
@@ -33,8 +38,7 @@ def plot_black_scholes_heatmaps(K, T, r, q, S_min, S_max, sigma_min, sigma_max, 
     fig_call.update_layout(
         title="Call Option Price Heatmap (Black-Scholes)",
         xaxis_title="Spot Price (S)",
-        yaxis_title="Volatility (σ)",
-        template="plotly_dark"
+        yaxis_title="Volatility (σ)"
     )
 
     fig_put = go.Figure(data=go.Heatmap(
@@ -47,68 +51,75 @@ def plot_black_scholes_heatmaps(K, T, r, q, S_min, S_max, sigma_min, sigma_max, 
     fig_put.update_layout(
         title="Put Option Price Heatmap (Black-Scholes)",
         xaxis_title="Spot Price (S)",
-        yaxis_title="Volatility (σ)",
-        template="plotly_dark"
+        yaxis_title="Volatility (σ)"
     )
 
     return fig_call, fig_put
 
 
-def plot_implied_volatility_vs_market_price(
-    S: float,
-    K: float,
-    T: float,
-    r: float,
-    market_prices: np.ndarray,
-    option_type: str = "call",
-    q: float = 0.0
+
+def plot_implied_volatility_vs_market_price_newton(
+    S, K, T, r, market_prices, option_type="call", q=0.0
 ):
- 
     implied_vols = []
     for price in market_prices:
         try:
-            iv = BlackScholesOption.implied_volatility_newton(
-                market_price=price,
-                S=S,
-                K=K,
-                T=T,
-                r=r,
-                option_type=option_type,
-                q=q
-            )
+            iv = implied_volatility_newton(price, S, K, T, r, option_type, q)
             implied_vols.append(iv)
-        except RuntimeError:
-            implied_vols.append(np.nan)  # No converge
+        except Exception:
+            implied_vols.append(np.nan)
 
     fig = go.Figure()
-    fig.add_trace(go.Scatter(
-        x=market_prices,
-        y=implied_vols,
-        mode="lines+markers",
-        name="Implied Volatility"
-    ))
+    fig.add_trace(go.Scatter(x=market_prices, y=implied_vols, mode="lines+markers", name="Implied Volatility (Newton)"))
     fig.update_layout(
-        title="Implied Volatility vs Market Option Price",
+        title="Implied Volatility vs Market Option Price (Newton-Raphson)",
         xaxis_title="Market Option Price",
         yaxis_title="Implied Volatility",
-        template="plotly_dark"
+        showlegend=True
     )
     return fig
 
 
-def plot_price_vs_spot(K, T, r, sigma, option_type, q, model_class):
-    S_range = np.linspace(50, 150, 100)
-    prices = [model_class(S, K, T, r, sigma, option_type, q).price() for S in S_range]
+
+def plot_implied_volatility_vs_market_price_bisection(
+    S, K, T, r, market_prices, option_type="call", q=0.0
+):
+    implied_vols = []
+    for price in market_prices:
+        try:
+            iv = implied_volatility_bisection(price, S, K, T, r, option_type, q)
+            implied_vols.append(iv)
+        except Exception:
+            implied_vols.append(np.nan)
 
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=S_range, y=prices, mode='lines', name='Option Price'))
+    fig.add_trace(go.Scatter(x=market_prices, y=implied_vols, mode="lines+markers", name="Implied Volatility (Bisection)"))
     fig.update_layout(
-        title="Option Price vs Spot Price",
-        xaxis_title="Spot Price (S)",
-        yaxis_title="Option Price",
-        template="plotly_dark"
+        title="Implied Volatility vs Market Option Price (Bisection)",
+        xaxis_title="Market Option Price",
+        yaxis_title="Implied Volatility",
+        showlegend=True
     )
     return fig
+
+
+def plot_implied_volatility_vs_market_price_vectorized(
+    S, K, T, r, market_prices, option_type="call", q=0.0, method="newton"
+):
+    implied_vols = implied_volatility_vectorized(market_prices, S, K, T, r, option_type, q, method=method)
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=market_prices, y=implied_vols, mode="lines+markers", name=f"Implied Volatility ({method.capitalize()})"))
+    fig.update_layout(
+        title=f"Implied Volatility vs Market Option Price ({method.capitalize()})",
+        xaxis_title="Market Option Price",
+        yaxis_title="Implied Volatility",
+        showlegend=True
+    )
+    return fig
+
+
+
 
 
 def plot_greeks_vs_spot(K, T, r, sigma, option_type, q, model_class):
@@ -126,8 +137,7 @@ def plot_greeks_vs_spot(K, T, r, sigma, option_type, q, model_class):
     fig.update_layout(
         title="Delta & Gamma vs Spot Price",
         xaxis_title="Spot Price (S)",
-        yaxis_title="Greek Value",
-        template="plotly_dark"
+        yaxis_title="Greek Value"
     )
     return fig
 
@@ -147,7 +157,6 @@ def plot_market_vol_surface(vol_surface_obj, method: str = "linear"):
             yaxis_title="Maturity (T)",
             zaxis_title="Implied Volatility"
         ),
-        template="plotly_dark",
         margin=dict(l=0, r=0, t=30, b=0)
     )
     return fig
@@ -166,8 +175,7 @@ def plot_svi_fit(log_moneyness, implied_vol, implied_vol_fit, T):
     fig.update_layout(
         title=f"SVI Smile Fit (T = {T:.2f} years)",
         xaxis_title="Log-Moneyness (k = log(K/F))",
-        yaxis_title="Implied Volatility",
-        template="plotly_dark"
+        yaxis_title="Implied Volatility"
     )
     return fig
 
@@ -194,8 +202,7 @@ def plot_sabr_fit_surface(K: np.ndarray, market_vols: np.ndarray, sabr_vols: np.
     fig.update_layout(
         title=f"SABR Volatility Fit (T={T:.2f} yrs, F={F})",
         xaxis_title="Strike (K)",
-        yaxis_title="Implied Volatility",
-        template="plotly_dark"
+        yaxis_title="Implied Volatility"
     )
 
     return fig
@@ -212,7 +219,6 @@ def plot_local_vol_surface(strikes: np.ndarray, maturities: np.ndarray, local_vo
             yaxis_title="Maturity (T)",
             zaxis_title="Local Volatility"
         ),
-        template="plotly_dark",
         margin=dict(l=0, r=0, t=30, b=0)
     )
     return fig
@@ -231,8 +237,7 @@ def plot_heston_price_vs_strike(S0, T, r, kappa, theta, sigma, rho, v0, option_t
     fig.update_layout(
         title="Heston Model: Option Price vs Strike",
         xaxis_title="Strike Price (K)",
-        yaxis_title="Option Price",
-        template="plotly_dark"
+        yaxis_title="Option Price"
     )
     return fig
 
@@ -263,7 +268,6 @@ def plot_rolling_var(returns: np.ndarray, var_series: np.ndarray, method: str = 
         title=f"Rolling {method.upper()} VaR ({int(confidence_level * 100)}% Confidence Level)",
         xaxis_title="Time (Index)",
         yaxis_title="Return / VaR",
-        template="plotly_dark",
         legend=dict(x=0, y=1.1, orientation="h")
     )
     return fig
@@ -287,7 +291,6 @@ def plot_var_es_histogram(returns: np.ndarray, var: float, es: float, title: str
         title=title,
         xaxis_title="Return",
         yaxis_title="Frequency",
-        template="plotly_dark",
         legend=dict(x=0.01, y=0.99)
     )
     return fig
@@ -303,8 +306,7 @@ def plot_garch_var_bar(var_value: float):
 
     fig.update_layout(
         title="GARCH VaR (1-day ahead forecast)",
-        yaxis_title="VaR",
-        template="plotly_dark"
+        yaxis_title="VaR"
     )
     return fig
 
@@ -321,8 +323,7 @@ def plot_stress_testing_bar(stress_results: dict):
     fig.update_layout(
         title="Stress Testing Results",
         xaxis_title="Scenario",
-        yaxis_title="Estimated Portfolio Loss",
-        template="plotly_dark"
+        yaxis_title="Estimated Portfolio Loss"
     )
     return fig
 
@@ -357,7 +358,6 @@ def plot_risk_ratios_bar_chart(ratio_dict: dict):
         title="\ud83d\udcca Risk Ratios Overview",
         xaxis_title="Ratio",
         yaxis_title="Value",
-        template="plotly_dark",
         xaxis_tickangle=30
     )
     return fig

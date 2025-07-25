@@ -83,20 +83,3 @@ class BlackScholesOption:
             "theta": theta,
             "rho": rho
         }
-
-
-
-    @staticmethod
-    def implied_volatility_newton(market_price, S, K, T, r, option_type="call", q=0.0, tol=1e-6, max_iter=100):
-        sigma = 0.2  # initial guess
-        for _ in range(max_iter):
-            opt = BlackScholesOption(S, K, T, r, sigma, option_type, q)
-            price = opt.price()
-            sqrt_T = np.sqrt(T)
-            d1 = opt._d1()
-            vega = S * np.exp(-q * T) * norm.pdf(d1) * sqrt_T
-            price_diff = price - market_price
-            if abs(price_diff) < tol:
-                return sigma
-            sigma -= price_diff / vega
-        raise RuntimeError("Implied volatility did not converge")

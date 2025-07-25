@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.stats import norm
-from src.constants import OPTION_TYPES, ERROR_OPTION_TYPE, VEGA_SCALE, RHO_SCALE, THETA_SCALE
+from src.utils.constants import OPTION_TYPES, ERROR_OPTION_TYPE, VEGA_SCALE, RHO_SCALE, THETA_SCALE
 from src.utils.utils import validate_option_type, validate_positive_inputs
 
 class BlackScholesGreeks:
