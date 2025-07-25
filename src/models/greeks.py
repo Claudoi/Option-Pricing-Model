@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.stats import norm
 from src.constants import OPTION_TYPES, ERROR_OPTION_TYPE, VEGA_SCALE, RHO_SCALE, THETA_SCALE
-from src.utils import validate_option_type, validate_positive_inputs
+from src.utils.utils import validate_option_type, validate_positive_inputs
 
 class BlackScholesGreeks:
     def __init__(self, S, K, T, r, sigma, option_type='call'):

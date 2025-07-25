@@ -1,15 +1,15 @@
 import numpy as np
 import pandas as pd
 from scipy.stats import norm
-from arch import arch_model
 
-from src.constants import (
+
+from src.utils.constants import (
     DEFAULT_SIMULATIONS,
     ONE_OVER_100,
     EPSILON,
     ERROR_INVALID_INPUTS
 )
-from src.utils import validate_positive_inputs
+from src.utils.utils import validate_positive_inputs
 
 
 class PortfolioVaR:
@@ -108,53 +108,6 @@ class MonteCarloVaR:
         es = var_model.calculate_es()
         return var, es, simulated_returns
 
-
-class RollingVaR:
-    """
-    General class for Rolling Value at Risk using EWMA or GARCH.
-    """
-
-    def __init__(
-        self,
-        returns: np.ndarray,
-        method: str = "ewma",
-        lambda_: float = 0.94,
-        window: int = 100,
-        confidence_level: float = 0.95
-    ):
-        self.returns = pd.Series(returns).dropna()
-        self.method = method.lower()
-        self.lambda_ = lambda_
-        self.window = window
-        self.confidence_level = confidence_level
-
-        if self.method not in {"ewma", "garch"}:
-            raise ValueError("method must be 'ewma' or 'garch'")
-
-        if self.method == "garch" and arch_model is None:
-            raise ImportError("arch package is required for GARCH model")
-
-    def calculate_var_series(self):
-        z = abs(norm.ppf(1 - self.confidence_level))
-
-        if self.method == "ewma":
-            var_series = []
-            for i in range(self.window, len(self.returns)):
-                window_data = self.returns[i - self.window:i]
-                weights = np.array([(1 - self.lambda_) * self.lambda_**(self.window - j - 1) for j in range(self.window)])
-                weights /= weights.sum()
-                variance = np.dot(weights, (window_data - window_data.mean()) ** 2)
-                ewma_std = np.sqrt(variance)
-                var = z * ewma_std
-                var_series.append(var)
-            return np.array(var_series)
-
-        elif self.method == "garch":
-            model = arch_model(self.returns * 100, vol="Garch", p=1, q=1)
-            res = model.fit(disp="off")
-            forecasts = res.forecast(horizon=1, reindex=False)
-            var = z * np.sqrt(forecasts.variance.values[-1, 0]) / 100
-            return var
 
 
 class StressTester:

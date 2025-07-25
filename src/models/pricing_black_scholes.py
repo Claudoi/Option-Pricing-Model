@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.stats import norm
-from src.constants import ONE_OVER_100, ONE_OVER_365
-from src.utils import validate_option_type, validate_positive_inputs
+from src.utils.constants import ONE_OVER_100, ONE_OVER_365
+from src.utils.utils import validate_option_type, validate_positive_inputs
 
 
 class BlackScholesOption:

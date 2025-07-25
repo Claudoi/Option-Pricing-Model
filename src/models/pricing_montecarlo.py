@@ -1,9 +1,9 @@
 import numpy as np
-from src.constants import (
+from src.utils.constants import (
     STRIKE_TYPES, DEFAULT_DISCRETIZATION, DEFAULT_SIMULATIONS,
     DEFAULT_H, DEFAULT_PAYOUT
 )
-from src.utils import (
+from src.utils.utils import (
     validate_option_type,
     validate_positive_inputs,
     validate_barrier_type,

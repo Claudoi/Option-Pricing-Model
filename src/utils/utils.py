@@ -1,6 +1,6 @@
 # Utils Placeholder
 import numpy as np
-from src.constants import VALID_OPTION_TYPES, VALID_BARRIER_TYPES, ERROR_OPTION_TYPE, ERROR_BARRIER_TYPE, ERROR_INVALID_INPUTS
+from src.utils.constants import VALID_OPTION_TYPES, VALID_BARRIER_TYPES, ERROR_OPTION_TYPE, ERROR_BARRIER_TYPE, ERROR_INVALID_INPUTS
 import yfinance as yf
 import pandas as pd
 

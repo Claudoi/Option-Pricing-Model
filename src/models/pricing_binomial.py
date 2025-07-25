@@ -1,5 +1,5 @@
 import numpy as np
-from src.utils import (
+from src.utils.utils import (
     validate_option_type,
     validate_positive_inputs,
     calculate_payoff
