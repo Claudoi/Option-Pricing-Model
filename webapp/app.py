@@ -1,6 +1,7 @@
 import streamlit as st
 from streamlit_option_menu import option_menu
 import numpy as np
+import plotly.graph_objs as go
 
 import sys, os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -33,6 +34,10 @@ selected = option_menu(
     icons=["calculator", "tree", "shuffle", "activity", "bar-chart"],
     orientation="horizontal"
 )
+
+
+
+
 
 # --- Black-Scholes Section ---
 if selected == "Black-Scholes":
@@ -149,6 +154,8 @@ if selected == "Black-Scholes":
 
 
 
+
+
 # --- Binomial Section ---
 if selected == "Binomial":
     st.markdown("### Binomial Option Pricing")
@@ -164,13 +171,12 @@ if selected == "Binomial":
             r = st.number_input("Risk-Free Rate (r)", value=0.05, min_value=0.0, format="%.4f")
             sigma = st.number_input("Volatility (σ)", value=0.2, min_value=0.0001, format="%.4f")
             option_type = st.selectbox("Option Type", ["call", "put"])
-            N = st.slider("Number of Steps (N)", min_value=1, max_value=100, value=50)
+            N = st.slider("Number of Steps (N)", min_value=1, max_value=100, value=5)
             style = st.selectbox("Option Style", ["European", "American"])
 
         submitted = st.form_submit_button("Calculate Binomial Price")
 
     if submitted:
-        # Select pricing method
         try:
             bin_opt = BinomialOption(S, K, T, r, sigma, N, option_type, q)
             if style == "European":
@@ -190,5 +196,99 @@ if selected == "Binomial":
                 st.markdown("#### Binomial Tree Visualization")
                 PlotUtils.show_binomial_tree(S, K, T, r, sigma, N, option_type, q, BinomialOption)
 
+                # Mostrar SIEMPRE el árbol de sensibilidades
+                try:
+                    st.markdown("#### Sensitividades Locales (Delta/Gamma por nodo)")
+                    tree = bin_opt.get_sensitivities_tree(american=(style == "American"))
+                    dot = PlotUtils.graphviz_binomial_sensitivities(tree)
+                    st.graphviz_chart(dot.source)   # <---- ¡Esto es lo importante!
+                except Exception as sensi_err:
+                    st.error(f"Error mostrando sensibilidades: {sensi_err}")
+
         except Exception as e:
             st.error(f"Error in Binomial pricing: {e}")
+
+
+
+
+
+# --- Monte Carlo Section ---
+if selected == "Monte Carlo":
+    st.markdown("### Monte Carlo Option Pricing")
+
+    with st.form("mc_form"):
+        col1, col2 = st.columns(2)
+        with col1:
+            S = st.number_input("Spot Price (S)", value=100.0, min_value=0.01, format="%.2f")
+            K = st.number_input("Strike Price (K)", value=100.0, min_value=0.01, format="%.2f")
+            T = st.number_input("Time to Maturity (T in years)", value=1.0, min_value=0.0001, format="%.4f")
+            q = st.number_input("Dividend Yield (q)", value=0.0, min_value=0.0, format="%.4f")
+        with col2:
+            r = st.number_input("Risk-Free Rate (r)", value=0.05, min_value=0.0, format="%.4f")
+            sigma = st.number_input("Volatility (σ)", value=0.2, min_value=0.0001, format="%.4f")
+            option_type = st.selectbox("Option Type", ["call", "put"])
+            n_sim = st.number_input("Simulations", value=10000, min_value=1000, step=1000)
+            n_steps = st.slider("Time Steps", min_value=10, max_value=500, value=100, step=10)
+            exotic = st.selectbox(
+                "Option Variant",
+                ["Vanilla", "Asian (arithmetic)", "Asian (geometric)", "Lookback (fixed)", "Lookback (floating)", "Digital Barrier", "American (Longstaff-Schwartz)"]
+            )
+
+        submitted = st.form_submit_button("Calculate Monte Carlo Price")
+
+    if submitted:
+        try:
+            mc = MonteCarloOption(S, K, T, r, sigma, option_type, n_sim, n_steps, q)
+
+            # --- Precio según la variante seleccionada ---
+            if exotic == "Vanilla":
+                price = mc.price_vanilla()
+            elif exotic == "Asian (arithmetic)":
+                price = mc.price_asian()
+            elif exotic == "Asian (geometric)":
+                price = mc.price_asian_geometric()
+            elif exotic == "Lookback (fixed)":
+                price = mc.price_lookback(strike_type="fixed")
+            elif exotic == "Lookback (floating)":
+                price = mc.price_lookback(strike_type="floating")
+            elif exotic == "Digital Barrier":
+                price = mc.price_digital_barrier(barrier=K * 1.1, barrier_type="up-and-in")
+            elif exotic == "American (Longstaff-Schwartz)":
+                price = mc.price_american_lsm()
+            else:
+                price = None
+
+            st.success(f"Monte Carlo {exotic} Price: {price:.4f}")
+
+            # --- Visualizar paths simulados ---
+            st.markdown("#### Monte Carlo Simulated Price Paths")
+            paths = mc._simulate_paths()
+            fig_paths = PlotUtils.plot_mc_paths(paths)
+            st.plotly_chart(fig_paths, use_container_width=True)
+
+            # --- Visualizar histograma de payoffs finales ---
+            st.markdown("#### Distribución de Payoffs Finales")
+            ST = paths[:, -1]
+            payoffs = np.maximum(ST - K, 0) if option_type == "call" else np.maximum(K - ST, 0)
+            fig_payoff = go.Figure(data=[go.Histogram(x=payoffs, nbinsx=50)])
+            fig_payoff.update_layout(
+                title="Distribución de Payoffs (Monte Carlo)",
+                xaxis_title="Payoff",
+                yaxis_title="Frecuencia"
+            )
+            st.plotly_chart(fig_payoff, use_container_width=True)
+
+            # --- (Opcional) Visualizar griegas estimadas por diferencias finitas ---
+            st.markdown("#### Greeks (Estimadas vía Monte Carlo)")
+            col1, col2, col3 = st.columns(3)
+            delta = mc.greek("delta")
+            vega = mc.greek("vega")
+            theta = mc.greek("theta")
+            rho = mc.greek("rho")
+            col1.metric("Delta", f"{delta:.4f}")
+            col2.metric("Vega", f"{vega:.4f}")
+            col3.metric("Theta", f"{theta:.4f}")
+            col1.metric("Rho", f"{rho:.4f}")
+
+        except Exception as e:
+            st.error(f"Error in Monte Carlo pricing: {e}")

@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objs as go
 import streamlit as st
-import graphviz
+
 
 from src.volatility.stochastic_volatility import HestonModel
 from src.models.pricing_black_scholes import BlackScholesOption
@@ -84,6 +84,7 @@ class PlotUtils:
 
     @staticmethod
     def show_binomial_tree(S, K, T, r, sigma, N, option_type, q, BinomialClass):
+        import graphviz
         """
         Visualiza el árbol binomial de precios usando Graphviz.
         """
@@ -104,6 +105,27 @@ class PlotUtils:
                 dot.edge(f"{i}_{j}", f"{i+1}_{j+1}")
 
         st.graphviz_chart(dot)
+
+
+
+    def graphviz_binomial_sensitivities(tree):
+        import graphviz
+        dot = graphviz.Digraph()
+        N = len(tree) - 1
+        for i, level in enumerate(tree):
+            for j, node in enumerate(level):
+                label = (
+                    f"S={node['S']:.2f}\n"
+                    f"V={node['V']:.2f}\n"
+                    f"Δ={node['Delta']:.2f}\n"
+                    f"Γ={node['Gamma']:.2f}"
+                )
+                name = f"n{i}_{j}"
+                dot.node(name, label, shape="ellipse", style="filled", fillcolor="#f5f5f7")
+                if i < N:
+                    dot.edge(name, f"n{i+1}_{j}")
+                    dot.edge(name, f"n{i+1}_{j+1}")
+        return dot
 
 
 
@@ -217,6 +239,30 @@ class PlotUtils:
             title=f"{option_type.capitalize()} Option Price vs Spot Price (Black-Scholes)",
             xaxis_title="Spot Price (S)",
             yaxis_title="Option Price"
+        )
+        return fig
+
+
+
+    @staticmethod
+    def plot_mc_paths(paths, n_show=50):
+        """
+        Plot simulated Monte Carlo price paths.
+        """
+        fig = go.Figure()
+        for i in range(min(n_show, len(paths))):
+            fig.add_trace(go.Scatter(
+                y=paths[i],
+                mode="lines",
+                line=dict(width=1),
+                showlegend=False,
+                hoverinfo="skip"
+            ))
+        fig.update_layout(
+            title="Monte Carlo Simulated Price Paths",
+            xaxis_title="Step",
+            yaxis_title="Price",
+            plot_bgcolor="white"
         )
         return fig
 

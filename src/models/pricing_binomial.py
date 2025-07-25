@@ -92,3 +92,74 @@ class BinomialOption:
             tree.append(level)
         return tree
 
+
+    def get_sensitivities_tree(self, american=False):
+        """
+        Devuelve el árbol binomial con spot, valor de la opción, Delta y Gamma en cada nodo.
+        Solo recomendable para N pequeño.
+        """
+        
+        N = self.N
+        dt = self.T / N
+        u = np.exp(self.sigma * np.sqrt(dt))
+        d = 1 / u
+        discount = np.exp(-self.r * dt)
+        p = (np.exp((self.r - self.q) * dt) - d) / (u - d)
+
+        # Construcción de árbol de precios spot
+        spot_tree = [[self.S * (u ** (i - j)) * (d ** j) for j in range(i + 1)] for i in range(N + 1)]
+        # Construcción de árbol de valores de la opción
+        value_tree = [[0.0 for _ in range(i + 1)] for i in range(N + 1)]
+        # Inicializa hojas
+        for j in range(N + 1):
+            S_T = spot_tree[N][j]
+            value_tree[N][j] = calculate_payoff(S_T, self.K, self.option_type)
+
+        # Backward induction
+        for i in range(N - 1, -1, -1):
+            for j in range(i + 1):
+                continuation = discount * (p * value_tree[i + 1][j] + (1 - p) * value_tree[i + 1][j + 1])
+                S_ij = spot_tree[i][j]
+                if american:
+                    exercise = calculate_payoff(S_ij, self.K, self.option_type)
+                    value_tree[i][j] = max(continuation, exercise)
+                else:
+                    value_tree[i][j] = continuation
+
+        # Delta & Gamma
+        node_tree = []
+        for i in range(N):
+            level = []
+            for j in range(i + 1):
+                S = spot_tree[i][j]
+                V = value_tree[i][j]
+                S_up = spot_tree[i + 1][j]
+                S_down = spot_tree[i + 1][j + 1]
+                V_up = value_tree[i + 1][j]
+                V_down = value_tree[i + 1][j + 1]
+                # Delta local
+                delta = (V_up - V_down) / (S_up - S_down) if (S_up != S_down) else float('nan')
+                # Gamma local (solo si no es penúltimo nivel)
+                if i < N - 1:
+                    S_uu = spot_tree[i + 2][j]
+                    S_ud = spot_tree[i + 2][j + 1]
+                    S_dd = spot_tree[i + 2][j + 2]
+                    V_uu = value_tree[i + 2][j]
+                    V_ud = value_tree[i + 2][j + 1]
+                    V_dd = value_tree[i + 2][j + 2]
+                    delta_up = (V_uu - V_ud) / (S_uu - S_ud) if (S_uu != S_ud) else float('nan')
+                    delta_down = (V_ud - V_dd) / (S_ud - S_dd) if (S_ud != S_dd) else float('nan')
+                    gamma = (delta_up - delta_down) / ((S_uu - S_dd) / 2) if (S_uu != S_dd) else float('nan')
+                else:
+                    gamma = float('nan')
+                level.append({
+                    'S': S,
+                    'V': V,
+                    'Delta': delta,
+                    'Gamma': gamma
+                })
+            node_tree.append(level)
+        # Añadir el último nivel (hojas, solo S y V)
+        level = [{'S': spot_tree[N][j], 'V': value_tree[N][j], 'Delta': float('nan'), 'Gamma': float('nan')} for j in range(N + 1)]
+        node_tree.append(level)
+        return node_tree
