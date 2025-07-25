@@ -79,3 +79,16 @@ class BinomialOption:
             return self.price_american(return_tree=True)
         else:
             return self.price_european(return_tree=True)
+        
+        
+    def get_tree(self):
+        S = self.S
+        u = np.exp(self.sigma * np.sqrt(self.T / self.N))
+        d = 1 / u
+        tree = []
+        for i in range(self.N + 1):
+            # En el paso i hay i precios "down" y N-i precios "up"
+            level = [S * (u ** (i - j)) * (d ** j) for j in range(i + 1)]
+            tree.append(level)
+        return tree
+
