@@ -418,6 +418,8 @@ if selected == "Volatility":
 
     vol_tab = st.tabs(["Vol Surface", "SVI Smile", "SABR", "Local Vol", "Heston"])
 
+
+
     # ------------- Volatility Surface --------------
     with vol_tab[0]:
         st.subheader("Volatility Surface (Market Data Interpolation)")
@@ -431,6 +433,8 @@ if selected == "Volatility":
                 st.plotly_chart(fig, use_container_width=True)
             except Exception as e:
                 st.error(f"Failed to load volatility surface: {e}")
+
+
 
     # ------------- SVI Calibration -----------------
     with vol_tab[1]:
@@ -449,6 +453,8 @@ if selected == "Volatility":
                 st.plotly_chart(fig, use_container_width=True)
             except Exception as e:
                 st.error(f"SVI Calibration failed: {e}")
+
+
 
     # ------------- SABR Calibration ----------------
     with vol_tab[2]:
@@ -473,26 +479,61 @@ if selected == "Volatility":
                 st.error(f"SABR calibration failed: {e}")
 
 
+
+
     # ------------- Local Volatility ----------------
     with vol_tab[3]:
-        st.subheader("Local Volatility Surface (Dupire)")
-        strikes = st.text_area("Strikes (comma separated)", "90,100,110,120", key="lv_strikes")
-        maturities = st.text_area("Maturities (comma separated, years)", "0.25,0.5,1", key="lv_maturities")
-        local_vol_grid = st.file_uploader("Local vol grid (CSV)", type=["csv"], key="lv_csv")
+        st.subheader("📉 Local Volatility Surface (Dupire)")
+
+        # Inputs del usuario
+        strikes_input = st.text_area("Strikes (comma separated)", "80,90,100,110,120", key="lv_strikes")
+        maturities_input = st.text_area("Maturities (comma separated, years)", "0.25,0.5,1.0", key="lv_maturities")
+        F = st.number_input("Forward Price (F)", value=100.0, key="lv_forward")
+        iv_grid_upload = st.file_uploader("Optional: Upload IV Surface CSV (shape: maturities × strikes)", type=["csv"], key="lv_iv_csv")
+
         if st.button("Show Local Vol Surface", key="lv_btn"):
             try:
-                strikes_arr = np.array([float(x) for x in strikes.split(",")])
-                maturities_arr = np.array([float(x) for x in maturities.split(",")])
-                if local_vol_grid:
-                    import pandas as pd
-                    grid = pd.read_csv(local_vol_grid, header=None).values
+                import pandas as pd
+
+                # Caso 1: El usuario sube un CSV ⇒ derivamos las dimensiones automáticamente
+                if iv_grid_upload is not None:
+                    iv_grid = pd.read_csv(iv_grid_upload, header=None).values
+                    m, k = iv_grid.shape
+
+                    # Creamos strikes y maturities uniformemente distribuidos (puedes personalizar esto)
+                    strikes_arr = np.linspace(80, 120, k)
+                    maturities_arr = np.linspace(0.25, 1.0, m)
+
+                    st.success(f"✅ CSV cargado con shape ({m}, {k}). Generados {k} strikes y {m} maturities automáticamente.")
+
+                # Caso 2: No se sube CSV ⇒ usar inputs manuales
                 else:
-                    # Puedes llamar a tu clase LocalVolatilitySurface aquí si lo tienes implementado.
-                    grid = np.ones((len(maturities_arr), len(strikes_arr)))
-                fig = PlotUtils.plot_local_vol_surface(strikes_arr, maturities_arr, grid)
-                st.plotly_chart(fig, use_container_width=True)
+                    strikes_arr = np.array([float(x.strip()) for x in strikes_input.split(",")])
+                    maturities_arr = np.array([float(x.strip()) for x in maturities_input.split(",")])
+                    m, k = len(maturities_arr), len(strikes_arr)
+
+                    st.info("ℹ️ No se subió CSV. Generando superficie IV sintética suave.")
+                    iv_grid = np.array([
+                        [0.20 + 0.02 * np.sin((K - 100) / 10) * np.cos(T * np.pi)
+                        for K in strikes_arr]
+                        for T in maturities_arr
+                    ])
+
+                # Construcción del objeto y cálculo de superficie local
+                lv_surface = LocalVolatilitySurface(strikes_arr, maturities_arr, iv_grid, F=F)
+                local_vol_grid = lv_surface.generate_surface()
+
+                # Visualización
+                fig = PlotUtils.plot_local_vol_surface(strikes_arr, maturities_arr, local_vol_grid)
+                if fig:
+                    st.plotly_chart(fig, use_container_width=True)
+
             except Exception as e:
-                st.error(f"Local volatility surface error: {e}")
+                st.error(f"❌ Error al calcular la superficie de volatilidad local: {e}")
+
+
+
+
 
     # ------------- Heston Model --------------------
     with vol_tab[4]:
@@ -512,6 +553,8 @@ if selected == "Volatility":
                 st.plotly_chart(fig, use_container_width=True)
             except Exception as e:
                 st.error(f"Heston simulation failed: {e}")
+
+
 
     # ------------ Sugerencia extra -----------------
     st.markdown(

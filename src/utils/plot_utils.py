@@ -343,11 +343,41 @@ class PlotUtils:
 
         return fig
 
+
     @staticmethod
     def plot_local_vol_surface(strikes: np.ndarray, maturities: np.ndarray, local_vol_grid: np.ndarray):
-        T_mesh, K_mesh = np.meshgrid(maturities, strikes, indexing="ij")
+        T_mesh, K_mesh = np.meshgrid(maturities, strikes, indexing="ij")  # (len(T), len(K)) para z-grid
 
-        fig = go.Figure(data=[go.Surface(x=K_mesh, y=T_mesh, z=local_vol_grid)])
+        st.markdown("#### 🧪 Preview local volatility grid")
+        st.dataframe(local_vol_grid)
+
+        num_total = local_vol_grid.size
+        num_valid = np.count_nonzero(~np.isnan(local_vol_grid))
+        min_val = np.nanmin(local_vol_grid)
+        max_val = np.nanmax(local_vol_grid)
+
+        st.markdown(f"- 🔍 **Min:** {min_val:.4f} &nbsp;&nbsp;&nbsp; **Max:** {max_val:.4f}")
+        st.markdown(f"- ✅ **Valores válidos:** {num_valid} / {num_total} ({100 * num_valid / num_total:.1f}%)")
+
+        if np.isnan(local_vol_grid).all():
+            st.error("⚠️ La superficie de volatilidad local es completamente NaN. Revisa los datos de IV o usa un grid más denso.")
+            return None
+
+        if num_valid < 0.3 * num_total:
+            st.warning("⚠️ Menos del 30% de la superficie contiene valores válidos. El gráfico puede verse incompleto.")
+
+        fig = go.Figure(data=[
+            go.Surface(
+                x=K_mesh,
+                y=T_mesh,
+                z=local_vol_grid,
+                colorscale='Viridis',
+                showscale=True,
+                cmin=min_val,
+                cmax=max_val
+            )
+        ])
+
         fig.update_layout(
             title="Local Volatility Surface (Dupire Model)",
             scene=dict(
@@ -355,9 +385,12 @@ class PlotUtils:
                 yaxis_title="Maturity (T)",
                 zaxis_title="Local Volatility"
             ),
-            margin=dict(l=0, r=0, t=30, b=0)
+            margin=dict(l=0, r=0, t=30, b=0),
+            height=600
         )
+
         return fig
+       
 
     @staticmethod
     def plot_heston_price_vs_strike(S0, T, r, kappa, theta, sigma, rho, v0, option_type="call"):
