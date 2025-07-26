@@ -1,36 +1,61 @@
 import numpy as np
 from scipy.optimize import minimize
 
-
-def svi_total_variance(k, a, b, rho, m, sigma):
-    return a + b * (rho * (k - m) + np.sqrt((k - m) ** 2 + sigma ** 2))
+class SVI_Calibrator:
 
 
-def objective_svi(params, k, market_variance):
-    a, b, rho, m, sigma = params
-    model = svi_total_variance(k, a, b, rho, m, sigma)
-    return np.mean((model - market_variance) ** 2)
+    def __init__(self, log_moneyness: np.ndarray, implied_vol: np.ndarray, maturity: float):
+        self.k = log_moneyness
+        self.iv = implied_vol
+        self.T = maturity
+        self.params_ = None
+        self.implied_vol_fit_ = None
 
+    @staticmethod
+    def svi_total_variance(k, a, b, rho, m, sigma):
+        return a + b * (rho * (k - m) + np.sqrt((k - m) ** 2 + sigma ** 2))
 
-def calibrate_svi(log_moneyness, implied_vol, T):
-    w_market = (implied_vol ** 2) * T
+    @staticmethod
+    def objective_svi(params, k, market_variance):
+        a, b, rho, m, sigma = params
+        model = SVI_Calibrator.svi_total_variance(k, a, b, rho, m, sigma)
+        return np.mean((model - market_variance) ** 2)
 
-    x0 = [0.1, 0.1, 0.0, 0.0, 0.1]
-    bounds = [
-        (-1, 1),
-        (0.001, 10),
-        (-0.999, 0.999),
-        (-1, 1),
-        (0.001, 2)
-    ]
+    def calibrate(self, x0=None, bounds=None):
+        w_market = (self.iv ** 2) * self.T
 
-    result = minimize(objective_svi, x0, args=(log_moneyness, w_market), bounds=bounds)
+        if x0 is None:
+            x0 = [0.1, 0.1, 0.0, 0.0, 0.1]
+        if bounds is None:
+            bounds = [
+                (-1, 1),     # a
+                (0.001, 10), # b
+                (-0.999, 0.999), # rho
+                (-1, 1),     # m
+                (0.001, 2)   # sigma
+            ]
 
-    if not result.success:
-        raise ValueError("SVI calibration failed.")
+        result = minimize(
+            SVI_Calibrator.objective_svi,
+            x0,
+            args=(self.k, w_market),
+            bounds=bounds
+        )
 
-    params = result.x
-    w_fit = svi_total_variance(log_moneyness, *params)
-    implied_vol_fit = np.sqrt(w_fit / T)
-    
-    return params, implied_vol_fit
+        if not result.success:
+            raise ValueError("SVI calibration failed.")
+
+        self.params_ = result.x
+        w_fit = self.svi_total_variance(self.k, *self.params_)
+        self.implied_vol_fit_ = np.sqrt(w_fit / self.T)
+        return self.params_, self.implied_vol_fit_
+
+    def get_params(self):
+        if self.params_ is None:
+            raise ValueError("Model not calibrated yet. Call calibrate() first.")
+        return self.params_
+
+    def get_fitted_vol(self):
+        if self.implied_vol_fit_ is None:
+            raise ValueError("Model not calibrated yet. Call calibrate() first.")
+        return self.implied_vol_fit_

@@ -5,4 +5,7 @@ matplotlib
 plotly
 ipywidgets
 streamlit
+streamlit_option_menu
+graphviz
 yfinance
+

@@ -1,5 +1,3 @@
-# volatility/sabr_calibration.py
-
 import numpy as np
 from scipy.optimize import minimize
 
