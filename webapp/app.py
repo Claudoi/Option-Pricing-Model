@@ -16,7 +16,7 @@ from src.risk.risk_rolling import RollingVaR
 from src.risk.risk_ratios import RiskRatios
 from src.models.implied_volatility import ImpliedVolatility
 from src.volatility.local_volatility import LocalVolatilitySurface
-from src.volatility.sabr_calibration import sabr_volatility
+from src.volatility.sabr_calibration import SABRCalibrator
 from src.volatility.stochastic_volatility import HestonModel
 from src.volatility.svi_calibration import SVI_Calibrator
 from src.volatility.volatility_surface import VolatilitySurface
@@ -408,3 +408,119 @@ if selected == "Risk Analysis":
             st.error(f"Error loading data or calculating risk metrics: {e}")
 
 
+
+
+
+
+
+if selected == "Volatility":
+    st.markdown("## Volatility Modeling & Calibration")
+
+    vol_tab = st.tabs(["Vol Surface", "SVI Smile", "SABR", "Local Vol", "Heston"])
+
+    # ------------- Volatility Surface --------------
+    with vol_tab[0]:
+        st.subheader("Volatility Surface (Market Data Interpolation)")
+        ticker = st.text_input("Ticker", "AAPL", key="vs_ticker")
+        st.write("Carga y visualiza la superficie de volatilidad usando precios de opciones reales.")
+        if st.button("Load Vol Surface", key="load_vol_surface_btn"):
+            try:
+                vol_surface = VolatilitySurface(ticker)
+                vol_surface.fetch_data()  # <- IMPORTANTE: cargar datos antes de plot
+                fig = PlotUtils.plot_market_vol_surface(vol_surface)
+                st.plotly_chart(fig, use_container_width=True)
+            except Exception as e:
+                st.error(f"Failed to load volatility surface: {e}")
+
+    # ------------- SVI Calibration -----------------
+    with vol_tab[1]:
+        st.subheader("SVI Smile Calibration")
+        k = st.text_area("Log-moneyness (comma separated)", "0, -0.1, 0.1, 0.2", key="svi_k")
+        iv = st.text_area("Implied Vols (comma separated)", "0.25, 0.24, 0.26, 0.27", key="svi_iv")
+        T_svi = st.number_input("Maturity (years)", value=0.5, format="%.2f", key="svi_maturity")
+        if st.button("Calibrate SVI", key="svi_btn"):
+            try:
+                k_arr = np.array([float(x) for x in k.split(",")])
+                iv_arr = np.array([float(x) for x in iv.split(",")])
+                svi = SVI_Calibrator(k_arr, iv_arr, T_svi)
+                params, iv_fit = svi.calibrate()
+                st.success(f"SVI Params: a={params[0]:.4f}, b={params[1]:.4f}, rho={params[2]:.4f}, m={params[3]:.4f}, sigma={params[4]:.4f}")
+                fig = PlotUtils.plot_svi_fit(k_arr, iv_arr, iv_fit, T_svi)
+                st.plotly_chart(fig, use_container_width=True)
+            except Exception as e:
+                st.error(f"SVI Calibration failed: {e}")
+
+    # ------------- SABR Calibration ----------------
+    with vol_tab[2]:
+        st.subheader("SABR Volatility Fit")
+        K = st.text_area("Strikes (comma separated)", "90, 100, 110, 120", key="sabr_K")
+        market_vols = st.text_area("Market IV (comma separated)", "0.22, 0.21, 0.23, 0.24", key="sabr_market_iv")
+        F = st.number_input("Forward Price", value=100.0, key="sabr_forward")
+        T_sabr = st.number_input("Maturity (years)", value=0.5, format="%.2f", key="sabr_maturity")
+        if st.button("Calibrate SABR", key="sabr_btn"):
+            try:
+                K_arr = np.array([float(x) for x in K.split(",")])
+                market_vols_arr = np.array([float(x) for x in market_vols.split(",")])
+                F_val = float(F)
+                T_val = float(T_sabr)
+                sabr = SABRCalibrator(F_val, K_arr, T_val, market_vols_arr, beta_fixed=0.5)
+                params = sabr.calibrate()      # <--- ¡Así!
+                sabr_vols = sabr.model_vols()
+                st.success(f"SABR Params: alpha={params[0]:.4f}, beta={params[1]:.4f}, rho={params[2]:.4f}, nu={params[3]:.4f}")
+                fig = PlotUtils.plot_sabr_fit_surface(K_arr, market_vols_arr, sabr_vols, F_val, T_val)
+                st.plotly_chart(fig, use_container_width=True)
+            except Exception as e:
+                st.error(f"SABR calibration failed: {e}")
+
+
+    # ------------- Local Volatility ----------------
+    with vol_tab[3]:
+        st.subheader("Local Volatility Surface (Dupire)")
+        strikes = st.text_area("Strikes (comma separated)", "90,100,110,120", key="lv_strikes")
+        maturities = st.text_area("Maturities (comma separated, years)", "0.25,0.5,1", key="lv_maturities")
+        local_vol_grid = st.file_uploader("Local vol grid (CSV)", type=["csv"], key="lv_csv")
+        if st.button("Show Local Vol Surface", key="lv_btn"):
+            try:
+                strikes_arr = np.array([float(x) for x in strikes.split(",")])
+                maturities_arr = np.array([float(x) for x in maturities.split(",")])
+                if local_vol_grid:
+                    import pandas as pd
+                    grid = pd.read_csv(local_vol_grid, header=None).values
+                else:
+                    # Puedes llamar a tu clase LocalVolatilitySurface aquí si lo tienes implementado.
+                    grid = np.ones((len(maturities_arr), len(strikes_arr)))
+                fig = PlotUtils.plot_local_vol_surface(strikes_arr, maturities_arr, grid)
+                st.plotly_chart(fig, use_container_width=True)
+            except Exception as e:
+                st.error(f"Local volatility surface error: {e}")
+
+    # ------------- Heston Model --------------------
+    with vol_tab[4]:
+        st.subheader("Heston Model: Price vs Strike")
+        S0 = st.number_input("Spot Price", value=100.0, key="heston_spot")
+        T_heston = st.number_input("Maturity (years)", value=1.0, format="%.2f", key="heston_maturity")
+        r = st.number_input("Risk-Free Rate", value=0.01, key="heston_rf")
+        kappa = st.number_input("kappa", value=2.0, key="heston_kappa")
+        theta = st.number_input("theta (long-run var)", value=0.04, key="heston_theta")
+        sigma = st.number_input("sigma (vol of vol)", value=0.5, key="heston_sigma")
+        rho = st.number_input("rho (correlation)", value=-0.7, key="heston_rho")
+        v0 = st.number_input("v0 (init var)", value=0.04, key="heston_v0")
+        option_type = st.selectbox("Option Type", ["call", "put"], key="heston_option_type")
+        if st.button("Simulate Heston", key="heston_btn"):
+            try:
+                fig = PlotUtils.plot_heston_price_vs_strike(S0, T_heston, r, kappa, theta, sigma, rho, v0, option_type)
+                st.plotly_chart(fig, use_container_width=True)
+            except Exception as e:
+                st.error(f"Heston simulation failed: {e}")
+
+    # ------------ Sugerencia extra -----------------
+    st.markdown(
+        """
+        <div style='margin-top:2em; font-size:0.9em; color:gray'>
+        <b>¿Ideas para ampliar?</b><br>
+        · Añadir visualización de la superficie de volatilidad implícita de mercado con animación para diferentes fechas.<br>
+        · Integrar calibración automática para varias smiles (distintos T) a la vez.<br>
+        · Añadir exportación a Excel de los parámetros calibrados y de las superficies.<br>
+        </div>
+        """, unsafe_allow_html=True
+    )

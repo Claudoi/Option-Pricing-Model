@@ -269,21 +269,31 @@ class PlotUtils:
 
     @staticmethod
     def plot_market_vol_surface(vol_surface_obj, method: str = "linear"):
-        vol_surface_obj.fetch_data()
         if vol_surface_obj.IV is None or len(vol_surface_obj.IV) == 0:
-            raise ValueError("No implied volatility data found.")
+            raise ValueError("No implied volatility data found. Call fetch_data() first.")
 
         grid_K, grid_T, grid_IV = vol_surface_obj.interpolate(method=method)
-
-        fig = go.Figure(data=[go.Surface(x=grid_K, y=grid_T, z=grid_IV)])
+        fig = go.Figure(data=[
+            go.Surface(
+                x=grid_K, y=grid_T, z=grid_IV,
+                colorbar=dict(title="Implied Volatility", tickformat=".2%"),
+                colorscale="Viridis",
+                showscale=True,
+                opacity=0.95
+            )
+        ])
         fig.update_layout(
             title=f"Implied Volatility Surface for {vol_surface_obj.ticker}",
             scene=dict(
                 xaxis_title="Strike (K)",
-                yaxis_title="Maturity (T)",
-                zaxis_title="Implied Volatility"
+                yaxis_title="Maturity (T, years)",
+                zaxis_title="Implied Volatility",
+                xaxis=dict(nticks=6, tickmode="auto"),
+                yaxis=dict(nticks=6, tickmode="auto"),
+                zaxis=dict(nticks=5, tickformat=".2%")
             ),
-            margin=dict(l=0, r=0, t=30, b=0)
+            autosize=True,
+            margin=dict(l=10, r=10, t=40, b=10)
         )
         return fig
 
