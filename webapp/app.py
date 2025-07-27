@@ -17,7 +17,7 @@ from src.risk.risk_ratios import RiskRatios
 from src.models.implied_volatility import ImpliedVolatility
 from src.volatility.local_volatility import LocalVolatilitySurface
 from src.volatility.sabr_calibration import SABRCalibrator
-from src.volatility.stochastic_volatility import HestonModel
+from src.volatility.stochastic_volatility import calibrate_heston
 from src.volatility.svi_calibration import SVI_Calibrator
 from src.volatility.volatility_surface import VolatilitySurface
 
@@ -523,7 +523,7 @@ if selected == "Volatility":
                 lv_surface = LocalVolatilitySurface(strikes_arr, maturities_arr, iv_grid, F=F)
                 local_vol_grid = lv_surface.generate_surface()
 
-                # Visualización
+                # Visualization
                 fig = PlotUtils.plot_local_vol_surface(strikes_arr, maturities_arr, local_vol_grid)
                 if fig:
                     st.plotly_chart(fig, use_container_width=True)
@@ -534,31 +534,79 @@ if selected == "Volatility":
 
 
 
-
     # ------------- Heston Model --------------------
     with vol_tab[4]:
         st.subheader("📘 Heston Model: Price vs Strike")
 
-        col1, col2 = st.columns(2)
-        with col1:
-            S0 = st.number_input("Spot Price (S₀)", value=100.0, key="heston_spot")
-            T_heston = st.number_input("Maturity (T, years)", value=1.0, format="%.2f", key="heston_maturity")
-            r = st.number_input("Risk-Free Rate (r)", value=0.01, key="heston_rf")
-            option_type = st.selectbox("Option Type", ["call", "put"], key="heston_option_type")
+        st.markdown("Simulate European option prices under the **Heston stochastic volatility model**.")
 
-        with col2:
-            kappa = st.number_input("Mean Reversion (κ)", value=2.0, key="heston_kappa")
-            theta = st.number_input("Long-Run Variance (θ)", value=0.04, key="heston_theta")
-            sigma = st.number_input("Vol of Volatility (σ)", value=0.5, key="heston_sigma")
-            rho = st.number_input("Correlation (ρ)", value=-0.7, key="heston_rho")
-            v0 = st.number_input("Initial Variance (v₀)", value=0.04, key="heston_v0")
+        # --- Formulario de parámetros ---
+        with st.form("heston_form"):
+            col1, col2 = st.columns(2)
 
-        if st.button("Simulate Heston", key="heston_btn"):
+            with col1:
+                S0 = st.number_input("Spot Price (S₀)", value=100.0, key="heston_spot")
+                T_heston = st.number_input("Maturity (T, in years)", value=1.0, format="%.2f", key="heston_maturity")
+                r = st.number_input("Risk-Free Rate (r)", value=0.01, format="%.4f", key="heston_rf")
+                option_type = st.selectbox("Option Type", ["call", "put"], key="heston_option_type")
+
+            with col2:
+                kappa = st.number_input("Mean Reversion Speed (κ)", value=2.0, key="heston_kappa")
+                theta = st.number_input("Long-Run Variance (θ)", value=0.04, key="heston_theta")
+                sigma = st.number_input("Volatility of Volatility (σ)", value=0.5, key="heston_sigma")
+                rho = st.number_input("Correlation (ρ)", value=-0.7, key="heston_rho")
+                v0 = st.number_input("Initial Variance (v₀)", value=0.04, key="heston_v0")
+
+            submitted = st.form_submit_button("Simulate Heston")
+
+        # --- Gráfico de precio vs strike ---
+        if submitted:
             try:
                 fig = PlotUtils.plot_heston_price_vs_strike(
-                    S0, T_heston, r, kappa, theta, sigma, rho, v0, option_type
+                    S0=S0,
+                    T=T_heston,
+                    r=r,
+                    kappa=kappa,
+                    theta=theta,
+                    sigma=sigma,
+                    rho=rho,
+                    v0=v0,
+                    option_type=option_type
                 )
+                st.success("✅ Simulation completed successfully.")
                 st.plotly_chart(fig, use_container_width=True)
             except Exception as e:
-                st.error(f"❌ Heston simulation failed: {e}")
+                st.error(f"❌ Simulation failed: {str(e)}")
+
+        # --- Calibración del modelo con datos reales ---
+        st.markdown("---")
+        st.subheader("Heston Calibration: Fit to Market Data")
+
+        uploaded_file = st.file_uploader("Upload Market Data CSV (columns: K,T,price)", type=["csv"], key="heston_csv")
+
+        if uploaded_file is not None:
+
+            try:
+                df = pd.read_csv(uploaded_file)
+                required_cols = {"K", "T", "price"}
+                if not required_cols.issubset(df.columns):
+                    st.error("❌ CSV must contain columns: 'K', 'T', 'price'")
+                else:
+                    # Convertir datos a formato de lista de dicts
+                    market_data = df[["K", "T", "price"]].to_dict("records")
+
+                    # Calibrar parámetros
+                    with st.spinner("⏳ Calibrating Heston model..."):
+                        calibrated_params = calibrate_heston(market_data, S0=S0, r=r, option_type=option_type)
+
+                    st.success(f"✅ Calibration completed: κ={calibrated_params[0]:.3f}, θ={calibrated_params[1]:.3f}, σ={calibrated_params[2]:.3f}, ρ={calibrated_params[3]:.3f}, v₀={calibrated_params[4]:.3f}")
+
+                    # Mostrar gráfico de comparación
+                    fig_fit = PlotUtils.plot_heston_calibration_fit(market_data, S0, r, calibrated_params, option_type=option_type)
+                    st.plotly_chart(fig_fit, use_container_width=True)
+
+            except Exception as e:
+                st.error(f"❌ Failed to process or calibrate: {str(e)}")
+
+
 

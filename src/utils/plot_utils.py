@@ -429,6 +429,51 @@ class PlotUtils:
 
 
     @staticmethod
+    def plot_heston_calibration_fit(market_data, S0, r, calibrated_params, option_type="call"):
+        kappa, theta, sigma, rho, v0 = calibrated_params
+        strikes = [d["K"] for d in market_data]
+        maturities = [d["T"] for d in market_data]
+        market_prices = [d["price"] for d in market_data]
+        model_prices = []
+
+        for d in market_data:
+            model = HestonModel(S0, d["K"], d["T"], r, kappa, theta, sigma, rho, v0, option_type)
+            model_prices.append(model.price())
+
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=strikes,
+            y=market_prices,
+            mode='markers',
+            name='Market Prices',
+            marker=dict(size=8, color='red'),
+            hovertemplate="Strike: %{x}<br>Market: %{y:.2f}"
+        ))
+
+        fig.add_trace(go.Scatter(
+            x=strikes,
+            y=model_prices,
+            mode='lines+markers',
+            name='Calibrated Heston Model',
+            marker=dict(size=6, color='green'),
+            hovertemplate="Strike: %{x}<br>Model: %{y:.2f}"
+        ))
+
+        fig.update_layout(
+            title="🎯 Heston Calibration: Market vs Model Prices",
+            xaxis_title="Strike Price (K)",
+            yaxis_title="Option Price",
+            template="plotly_white",
+            height=500,
+            margin=dict(l=40, r=40, t=60, b=40)
+        )
+
+        return fig
+
+
+
+
+    @staticmethod
     def plot_rolling_var(returns: np.ndarray, var_series: np.ndarray, method: str = "ewma", confidence_level: float = 0.95, window: int = 100):
         returns = pd.Series(returns).dropna()
         x_range = range(window, window + len(var_series))

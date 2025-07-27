@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.integrate import quad
 from numpy import log, exp, sqrt, pi
+from scipy.optimize import minimize
 
 
 class HestonModel:
@@ -38,11 +39,10 @@ class HestonModel:
 
     def _integrand(self, phi, Pnum):
         if phi == 0:
-            return 0.0  # evitar división por cero
+            return 0.0
         return np.real(np.exp(-1j * phi * np.log(self.K)) * self._char_func(phi, Pnum) / (1j * phi))
 
     def price(self):
-        # Evitamos phi = 0 en la integración
         integral1 = quad(lambda phi: self._integrand(phi, 1), 1e-5, 100, limit=100)[0]
         integral2 = quad(lambda phi: self._integrand(phi, 2), 1e-5, 100, limit=100)[0]
 
@@ -57,3 +57,21 @@ class HestonModel:
             return call_price - self.S0 + self.K * exp(-self.r * self.T)
         else:
             raise ValueError("option_type must be 'call' or 'put'")
+
+
+
+def calibrate_heston(market_data, S0, r, option_type="call"):
+    def objective(params):
+        kappa, theta, sigma, rho, v0 = params
+        error = 0.0
+        for data in market_data:
+            model = HestonModel(S0, data["K"], data["T"], r, kappa, theta, sigma, rho, v0, option_type)
+            model_price = model.price()
+            error += (model_price - data["price"]) ** 2
+        return error
+
+    bounds = [(0.01, 5.0), (0.01, 1.0), (0.01, 1.0), (-0.99, 0.99), (0.001, 1.0)]
+    x0 = [1.0, 0.04, 0.3, -0.5, 0.04]
+
+    result = minimize(objective, x0, bounds=bounds, method='L-BFGS-B')
+    return result.x
