@@ -20,6 +20,8 @@ from src.volatility.sabr_calibration import SABRCalibrator
 from src.volatility.stochastic_volatility import calibrate_heston
 from src.volatility.svi_calibration import SVI_Calibrator
 from src.volatility.volatility_surface import VolatilitySurface
+from src.volatility.hedging_simulator import DeltaHedgingSimulator
+
 
 
 from src.utils.plot_utils import PlotUtils
@@ -416,7 +418,7 @@ if selected == "Risk Analysis":
 if selected == "Volatility":
     st.markdown("## Volatility Modeling & Calibration")
 
-    vol_tab = st.tabs(["Vol Surface", "SVI Smile", "SABR", "Local Vol", "Heston"])
+    vol_tab = st.tabs(["Volatility Surface", "SVI Smile", "SABR", "Local Volatility", "Heston Model", "Delta Hedging Simulator"])
 
 
 
@@ -536,7 +538,7 @@ if selected == "Volatility":
 
     # ------------- Heston Model --------------------
     with vol_tab[4]:
-        st.subheader("📘 Heston Model: Price vs Strike")
+        st.subheader("Heston Model: Price vs Strike")
 
         st.markdown("Simulate European option prices under the **Heston stochastic volatility model**.")
 
@@ -607,6 +609,69 @@ if selected == "Volatility":
 
             except Exception as e:
                 st.error(f"❌ Failed to process or calibrate: {str(e)}")
+
+
+
+
+    # -------- Delta Hedging Simulator (Tab 5) --------
+    with vol_tab[5]:
+        st.subheader("📊 Delta Hedging Simulator")
+
+        st.markdown(
+            "Simulate dynamic delta hedging of a European option under the **Black-Scholes model**. "
+            "This tool allows you to track P&L, hedge ratio, and spot movements through time."
+        )
+
+        # --- Parameter input form ---
+        with st.form("delta_hedging_form"):
+            col1, col2 = st.columns(2)
+
+            with col1:
+                S0 = st.number_input("Initial Spot Price (S₀)", value=100.0, format="%.2f", key="dh_spot")
+                K = st.number_input("Strike Price (K)", value=100.0, format="%.2f", key="dh_strike")
+                T = st.number_input("Time to Maturity (T in years)", value=1.0, format="%.2f", key="dh_T")
+                r = st.number_input("Risk-Free Rate (r)", value=0.01, format="%.4f", key="dh_r")
+
+            with col2:
+                sigma = st.number_input("Volatility (σ)", value=0.2, format="%.4f", key="dh_sigma")
+                option_type = st.selectbox("Option Type", ["call", "put"], key="dh_option_type")
+                steps = st.slider("Number of Hedge Steps", min_value=10, max_value=365, value=50, key="dh_steps")
+                n_paths = st.slider("Number of Simulated Paths", min_value=10, max_value=1000, value=100, step=10, key="dh_paths")
+
+            submitted = st.form_submit_button("Run Delta Hedging Simulation")
+
+        # --- Run simulation and plot ---
+        if submitted:
+            try:
+                from src.hedging_simulator import DeltaHedgingSimulator
+                from src.plot_utils import plot_hedging_pnl_paths
+
+                # Create simulator object
+                simulator = DeltaHedgingSimulator(
+                    S0=S0,
+                    K=K,
+                    T=T,
+                    r=r,
+                    sigma=sigma,
+                    option_type=option_type,
+                    steps=steps,
+                    n_paths=n_paths
+                )
+
+                # Run simulation and obtain results
+                results = simulator.run()
+
+                # Plot P&L distribution across paths
+                fig_pnl = plot_hedging_pnl_paths(results["pnl_paths"])
+                st.plotly_chart(fig_pnl, use_container_width=True)
+
+                # Summary metrics
+                mean_pnl = np.mean(results["pnl_paths"][:, -1])
+                std_pnl = np.std(results["pnl_paths"][:, -1])
+                st.success(f"✅ Simulation completed: Mean P&L = {mean_pnl:.4f}, Std Dev = {std_pnl:.4f}")
+
+            except Exception as e:
+                st.error(f"❌ Delta hedging simulation failed: {str(e)}")
 
 
 

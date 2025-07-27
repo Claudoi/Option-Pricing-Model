@@ -597,3 +597,44 @@ class PlotUtils:
             xaxis_tickangle=30
         )
         return fig
+
+
+
+    @staticmethod
+    def plot_hedging_pnl(time_grid: np.ndarray, pnl: np.ndarray, title: str = "Delta Hedging P&L Over Time") -> go.Figure:
+        fig = go.Figure()
+
+        # Main P&L line
+        fig.add_trace(go.Scatter(
+            x=time_grid,
+            y=pnl,
+            mode="lines+markers",
+            name="Hedging P&L",
+            line=dict(color="mediumseagreen", width=2),
+            marker=dict(size=4),
+            hovertemplate="Time: %{x:.2f}<br>P&L: %{y:.2f}<extra></extra>"
+        ))
+
+        # Reference line at P&L = 0
+        fig.add_trace(go.Scatter(
+            x=time_grid,
+            y=np.zeros_like(time_grid),
+            mode="lines",
+            name="Break-even",
+            line=dict(color="lightgray", dash="dash"),
+            showlegend=True
+        ))
+
+        # Layout styling
+        fig.update_layout(
+            title=title,
+            xaxis_title="Time to Maturity",
+            yaxis_title="P&L",
+            template="plotly_white",
+            height=500,
+            width=800,
+            margin=dict(l=60, r=60, t=60, b=60),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5)
+        )
+
+        return fig
