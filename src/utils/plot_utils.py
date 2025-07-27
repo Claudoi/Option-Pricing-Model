@@ -398,16 +398,32 @@ class PlotUtils:
         prices = []
 
         for K in strikes:
-            model = HestonModel(S0, K, T, r, kappa, theta, sigma, rho, v0, option_type)
-            prices.append(model.price())
+            try:
+                model = HestonModel(S0, K, T, r, kappa, theta, sigma, rho, v0, option_type)
+                price = model.price()
+                prices.append(price)
+            except Exception as e:
+                prices.append(np.nan)  # En caso de error, mejor NaN que romper el gráfico
 
         fig = go.Figure()
-        fig.add_trace(go.Scatter(x=strikes, y=prices, mode='lines', name='Heston Price'))
+        fig.add_trace(go.Scatter(
+            x=strikes,
+            y=prices,
+            mode='lines+markers',
+            name='Heston Price',
+            line=dict(color='royalblue'),
+            hovertemplate="Strike: %{x:.2f}<br>Price: %{y:.2f}"
+        ))
+
         fig.update_layout(
-            title="Heston Model: Option Price vs Strike",
+            title="📈 Heston Model: Option Price vs Strike",
             xaxis_title="Strike Price (K)",
-            yaxis_title="Option Price"
+            yaxis_title="Option Price",
+            template="plotly_dark",
+            height=500,
+            margin=dict(l=40, r=40, t=60, b=40)
         )
+
         return fig
 
 

@@ -537,33 +537,28 @@ if selected == "Volatility":
 
     # ------------- Heston Model --------------------
     with vol_tab[4]:
-        st.subheader("Heston Model: Price vs Strike")
-        S0 = st.number_input("Spot Price", value=100.0, key="heston_spot")
-        T_heston = st.number_input("Maturity (years)", value=1.0, format="%.2f", key="heston_maturity")
-        r = st.number_input("Risk-Free Rate", value=0.01, key="heston_rf")
-        kappa = st.number_input("kappa", value=2.0, key="heston_kappa")
-        theta = st.number_input("theta (long-run var)", value=0.04, key="heston_theta")
-        sigma = st.number_input("sigma (vol of vol)", value=0.5, key="heston_sigma")
-        rho = st.number_input("rho (correlation)", value=-0.7, key="heston_rho")
-        v0 = st.number_input("v0 (init var)", value=0.04, key="heston_v0")
-        option_type = st.selectbox("Option Type", ["call", "put"], key="heston_option_type")
+        st.subheader("📘 Heston Model: Price vs Strike")
+
+        col1, col2 = st.columns(2)
+        with col1:
+            S0 = st.number_input("Spot Price (S₀)", value=100.0, key="heston_spot")
+            T_heston = st.number_input("Maturity (T, years)", value=1.0, format="%.2f", key="heston_maturity")
+            r = st.number_input("Risk-Free Rate (r)", value=0.01, key="heston_rf")
+            option_type = st.selectbox("Option Type", ["call", "put"], key="heston_option_type")
+
+        with col2:
+            kappa = st.number_input("Mean Reversion (κ)", value=2.0, key="heston_kappa")
+            theta = st.number_input("Long-Run Variance (θ)", value=0.04, key="heston_theta")
+            sigma = st.number_input("Vol of Volatility (σ)", value=0.5, key="heston_sigma")
+            rho = st.number_input("Correlation (ρ)", value=-0.7, key="heston_rho")
+            v0 = st.number_input("Initial Variance (v₀)", value=0.04, key="heston_v0")
+
         if st.button("Simulate Heston", key="heston_btn"):
             try:
-                fig = PlotUtils.plot_heston_price_vs_strike(S0, T_heston, r, kappa, theta, sigma, rho, v0, option_type)
+                fig = PlotUtils.plot_heston_price_vs_strike(
+                    S0, T_heston, r, kappa, theta, sigma, rho, v0, option_type
+                )
                 st.plotly_chart(fig, use_container_width=True)
             except Exception as e:
-                st.error(f"Heston simulation failed: {e}")
+                st.error(f"❌ Heston simulation failed: {e}")
 
-
-
-    # ------------ Sugerencia extra -----------------
-    st.markdown(
-        """
-        <div style='margin-top:2em; font-size:0.9em; color:gray'>
-        <b>¿Ideas para ampliar?</b><br>
-        · Añadir visualización de la superficie de volatilidad implícita de mercado con animación para diferentes fechas.<br>
-        · Integrar calibración automática para varias smiles (distintos T) a la vez.<br>
-        · Añadir exportación a Excel de los parámetros calibrados y de las superficies.<br>
-        </div>
-        """, unsafe_allow_html=True
-    )

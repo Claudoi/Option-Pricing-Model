@@ -66,6 +66,7 @@ class LocalVolatilitySurface:
             denominator = (1 + K * d2_sigma_dK2)**2
             local_vol_squared = numerator / denominator if denominator != 0 else np.nan
             return np.sqrt(local_vol_squared) if local_vol_squared > 0 else np.nan
+        
         except Exception:
             return np.nan
 
