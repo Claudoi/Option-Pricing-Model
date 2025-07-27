@@ -615,7 +615,7 @@ if selected == "Volatility":
 
     # -------- Delta Hedging Simulator (Tab 5) --------
     with vol_tab[5]:
-        st.subheader("📊 Delta Hedging Simulator")
+        st.subheader("Delta Hedging Simulator")
 
         st.markdown(
             "Simulate dynamic delta hedging of a European option under the **Black-Scholes model**. "
@@ -656,12 +656,13 @@ if selected == "Volatility":
                 )
 
                 # Run simulation
-                pnl_paths, time_grid, pnl_over_time = simulator.simulate()
+                pnl_paths, time_grid, pnl_over_time, hedging_errors = simulator.simulate()
 
-                # Compute mean P&L across time
+                # --- Compute analytics ---
                 mean_pnl_over_time = np.mean(pnl_over_time, axis=0)
+                mean_abs_error_over_time = np.mean(np.abs(hedging_errors), axis=0)
 
-                # --- Line plot: Mean P&L over time ---
+                # --- Plot 1: P&L over time ---
                 fig_pnl_time = PlotUtils.plot_hedging_pnl(
                     time_grid=time_grid,
                     pnl=mean_pnl_over_time,
@@ -669,12 +670,20 @@ if selected == "Volatility":
                 )
                 st.plotly_chart(fig_pnl_time, use_container_width=True)
 
-                # --- Histogram plot: Final P&L across all paths ---
+                # --- Plot 2: Final P&L distribution ---
                 fig_pnl_hist = PlotUtils.plot_hedging_pnl_histogram(
                     pnl_paths=pnl_paths,
                     title="📊 Final P&L Distribution Across Paths"
                 )
                 st.plotly_chart(fig_pnl_hist, use_container_width=True)
+
+                # --- Plot 3: Hedging error over time ---
+                fig_error = PlotUtils.plot_hedging_error_over_time(
+                    time_grid=time_grid,
+                    hedging_errors=mean_abs_error_over_time,
+                    title="📉 Mean Absolute Hedging Error Over Time"
+                )
+                st.plotly_chart(fig_error, use_container_width=True)
 
                 # --- Summary statistics ---
                 mean_pnl = np.mean(pnl_paths)

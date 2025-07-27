@@ -68,22 +68,26 @@ class DeltaHedgingSimulator:
         d1 = (np.log(S / K) + (r + 0.5 * sigma ** 2) * T) / (sigma * np.sqrt(T))
         return norm.cdf(d1) if option_type == "call" else norm.cdf(d1) - 1
 
+
     def simulate(self):
         """
         Runs the Monte Carlo simulation of the delta hedging strategy.
 
         Returns:
-            tuple: (pnl_paths, time_grid, pnl_over_time)
+            tuple: (pnl_paths, time_grid, pnl_over_time, hedging_errors)
                 - pnl_paths: Array with final P&L per path.
                 - time_grid: Time points of the simulation.
-                - pnl_over_time: Array of shape (N_paths, N_steps+1) with P&L over time.
+                - pnl_over_time: Array (N_paths, N_steps+1) with P&L over time.
+                - hedging_errors: Array (N_paths, N_steps+1) with hedging error over time.
         """
         pnl_paths = []
         pnl_over_time = []
+        hedging_errors = []
 
         for _ in range(self.N_paths):
             S = np.zeros(self.N_steps + 1)
             S[0] = self.S0
+
             for t in range(1, self.N_steps + 1):
                 z = np.random.randn()
                 S[t] = S[t - 1] * np.exp(
@@ -94,6 +98,7 @@ class DeltaHedgingSimulator:
             cash_account = 0.0
             delta_prev = 0.0
             pnl_t = []
+            error_t = []
 
             for t in range(0, self.N_steps, self.hedge_freq):
                 T_remain = self.T - self.time_grid[t]
@@ -107,22 +112,29 @@ class DeltaHedgingSimulator:
                 cash_account *= np.exp(self.r * self.dt * self.hedge_freq)
                 delta_prev = delta
 
-                # Compute instantaneous portfolio value
                 portfolio = delta * S_t + cash_account
                 option_val = self._black_scholes_price(S_t, self.K, T_remain, self.r, self.sigma, self.option_type)
-                pnl_t.append(portfolio - option_val)
 
-            # Final P&L
+                pnl_t.append(portfolio - option_val)
+                error_t.append(abs(portfolio - option_val))  # <-- absolute hedging error
+
             payoff = self._black_scholes_price(S[-1], self.K, 0, self.r, self.sigma, self.option_type)
             portfolio_final = delta_prev * S[-1] + cash_account
             pnl = portfolio_final - payoff
 
             pnl_paths.append(pnl)
-            # Pad pnl_t to full length
+
             pnl_full = np.zeros(self.N_steps + 1)
+            err_full = np.zeros(self.N_steps + 1)
             pnl_full[:len(pnl_t)] = pnl_t
+            err_full[:len(error_t)] = error_t
+
             pnl_over_time.append(pnl_full)
+            hedging_errors.append(err_full)
 
-        return np.array(pnl_paths), self.time_grid, np.array(pnl_over_time)
-
-
+        return (
+            np.array(pnl_paths),
+            self.time_grid,
+            np.array(pnl_over_time),
+            np.array(hedging_errors)
+        )

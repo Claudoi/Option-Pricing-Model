@@ -674,3 +674,45 @@ class PlotUtils:
 
         return fig
 
+
+    @staticmethod
+    def plot_hedging_error_over_time(time_grid: np.ndarray, hedging_errors: np.ndarray, title: str = "Delta Hedging Error Over Time") -> go.Figure:
+
+        hedging_errors = np.atleast_2d(hedging_errors)
+
+        # Mean error over time (across all paths)
+        mean_error = np.mean(hedging_errors, axis=0)
+
+        fig = go.Figure()
+
+        fig.add_trace(go.Scatter(
+            x=time_grid,
+            y=mean_error,
+            mode="lines+markers",
+            name="Mean Hedging Error",
+            line=dict(color="crimson", width=2),
+            marker=dict(size=4),
+            hovertemplate="Time: %{x:.2f}<br>Error: %{y:.5f}<extra></extra>"
+        ))
+
+        fig.add_trace(go.Scatter(
+            x=time_grid,
+            y=np.zeros_like(time_grid),
+            mode="lines",
+            name="Zero Error",
+            line=dict(color="lightgray", dash="dash"),
+            showlegend=True
+        ))
+
+        fig.update_layout(
+            title=title,
+            xaxis_title="Time to Maturity",
+            yaxis_title="Hedging Error",
+            template="plotly_white",
+            height=500,
+            width=800,
+            margin=dict(l=60, r=60, t=60, b=60),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5)
+        )
+
+        return fig
