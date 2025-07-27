@@ -73,14 +73,15 @@ class DeltaHedgingSimulator:
         Runs the Monte Carlo simulation of the delta hedging strategy.
 
         Returns:
-            tuple: (pnl_paths, time_grid)
-                - pnl_paths: Array with P&L per path.
+            tuple: (pnl_paths, time_grid, pnl_over_time)
+                - pnl_paths: Array with final P&L per path.
                 - time_grid: Time points of the simulation.
+                - pnl_over_time: Array of shape (N_paths, N_steps+1) with P&L over time.
         """
         pnl_paths = []
+        pnl_over_time = []
 
         for _ in range(self.N_paths):
-            # Simulate underlying path
             S = np.zeros(self.N_steps + 1)
             S[0] = self.S0
             for t in range(1, self.N_steps + 1):
@@ -90,11 +91,10 @@ class DeltaHedgingSimulator:
                     self.sigma * np.sqrt(self.dt) * z
                 )
 
-            # Initialize replicating portfolio
             cash_account = 0.0
             delta_prev = 0.0
+            pnl_t = []
 
-            # Rebalance hedge along the path
             for t in range(0, self.N_steps, self.hedge_freq):
                 T_remain = self.T - self.time_grid[t]
                 if T_remain <= 0:
@@ -103,14 +103,26 @@ class DeltaHedgingSimulator:
                 S_t = S[t]
                 delta = self._delta_bs(S_t, self.K, T_remain, self.r, self.sigma, self.option_type)
                 d_delta = delta - delta_prev
-                cash_account -= d_delta * S_t  # Buy/sell underlying asset
-                cash_account *= np.exp(self.r * self.dt * self.hedge_freq)  # Interest accrual
+                cash_account -= d_delta * S_t
+                cash_account *= np.exp(self.r * self.dt * self.hedge_freq)
                 delta_prev = delta
 
-            # Final settlement
-            payoff = self._black_scholes_price(S[-1], self.K, 0, self.r, self.sigma, self.option_type)
-            portfolio = delta_prev * S[-1] + cash_account
-            pnl = portfolio - payoff
-            pnl_paths.append(pnl)
+                # Compute instantaneous portfolio value
+                portfolio = delta * S_t + cash_account
+                option_val = self._black_scholes_price(S_t, self.K, T_remain, self.r, self.sigma, self.option_type)
+                pnl_t.append(portfolio - option_val)
 
-        return np.array(pnl_paths), self.time_grid
+            # Final P&L
+            payoff = self._black_scholes_price(S[-1], self.K, 0, self.r, self.sigma, self.option_type)
+            portfolio_final = delta_prev * S[-1] + cash_account
+            pnl = portfolio_final - payoff
+
+            pnl_paths.append(pnl)
+            # Pad pnl_t to full length
+            pnl_full = np.zeros(self.N_steps + 1)
+            pnl_full[:len(pnl_t)] = pnl_t
+            pnl_over_time.append(pnl_full)
+
+        return np.array(pnl_paths), self.time_grid, np.array(pnl_over_time)
+
+

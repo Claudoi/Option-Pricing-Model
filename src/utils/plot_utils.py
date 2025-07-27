@@ -602,6 +602,8 @@ class PlotUtils:
 
     @staticmethod
     def plot_hedging_pnl(time_grid: np.ndarray, pnl: np.ndarray, title: str = "Delta Hedging P&L Over Time") -> go.Figure:
+        
+        pnl = np.atleast_1d(pnl)
         fig = go.Figure()
 
         # Main P&L line
@@ -638,3 +640,37 @@ class PlotUtils:
         )
 
         return fig
+    
+
+    @staticmethod
+    def plot_hedging_pnl_histogram(pnl_paths: np.ndarray, title: str = "Histogram of Final P&L") -> go.Figure:
+
+
+        # If pnl_paths is 2D (paths x time), take final value
+        if pnl_paths.ndim == 2:
+            pnl_final = pnl_paths[:, -1]
+        else:
+            pnl_final = pnl_paths
+
+        fig = go.Figure()
+
+        fig.add_trace(go.Histogram(
+            x=pnl_final,
+            nbinsx=50,
+            marker_color="mediumseagreen",
+            opacity=0.75,
+            name="Final P&L"
+        ))
+
+        fig.update_layout(
+            title=title,
+            xaxis_title="Final P&L",
+            yaxis_title="Frequency",
+            template="plotly_white",
+            height=450,
+            width=750,
+            margin=dict(l=50, r=50, t=60, b=50)
+        )
+
+        return fig
+

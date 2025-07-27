@@ -619,10 +619,10 @@ if selected == "Volatility":
 
         st.markdown(
             "Simulate dynamic delta hedging of a European option under the **Black-Scholes model**. "
-            "This tool allows you to track P&L, hedge ratio, and spot movements through time."
+            "This tool allows you to track P&L evolution, hedge performance, and final distribution across scenarios."
         )
 
-        # --- Parameter input form ---
+        # --- Input form for simulation parameters ---
         with st.form("delta_hedging_form"):
             col1, col2 = st.columns(2)
 
@@ -640,13 +640,10 @@ if selected == "Volatility":
 
             submitted = st.form_submit_button("Run Delta Hedging Simulation")
 
-        # --- Run simulation and plot ---
+        # --- Execute simulation and plot results ---
         if submitted:
             try:
-                from src.hedging_simulator import DeltaHedgingSimulator
-                from src.plot_utils import plot_hedging_pnl_paths
-
-                # Create simulator object
+                # Initialize simulator
                 simulator = DeltaHedgingSimulator(
                     S0=S0,
                     K=K,
@@ -654,24 +651,35 @@ if selected == "Volatility":
                     r=r,
                     sigma=sigma,
                     option_type=option_type,
-                    steps=steps,
-                    n_paths=n_paths
+                    N_steps=steps,
+                    N_paths=n_paths
                 )
 
-                # Run simulation and obtain results
-                results = simulator.run()
+                # Run simulation
+                pnl_paths, time_grid, pnl_over_time = simulator.simulate()
 
-                # Plot P&L distribution across paths
-                fig_pnl = plot_hedging_pnl_paths(results["pnl_paths"])
-                st.plotly_chart(fig_pnl, use_container_width=True)
+                # Compute mean P&L across time
+                mean_pnl_over_time = np.mean(pnl_over_time, axis=0)
 
-                # Summary metrics
-                mean_pnl = np.mean(results["pnl_paths"][:, -1])
-                std_pnl = np.std(results["pnl_paths"][:, -1])
+                # --- Line plot: Mean P&L over time ---
+                fig_pnl_time = PlotUtils.plot_hedging_pnl(
+                    time_grid=time_grid,
+                    pnl=mean_pnl_over_time,
+                    title="📈 Mean Delta Hedging P&L Over Time"
+                )
+                st.plotly_chart(fig_pnl_time, use_container_width=True)
+
+                # --- Histogram plot: Final P&L across all paths ---
+                fig_pnl_hist = PlotUtils.plot_hedging_pnl_histogram(
+                    pnl_paths=pnl_paths,
+                    title="📊 Final P&L Distribution Across Paths"
+                )
+                st.plotly_chart(fig_pnl_hist, use_container_width=True)
+
+                # --- Summary statistics ---
+                mean_pnl = np.mean(pnl_paths)
+                std_pnl = np.std(pnl_paths)
                 st.success(f"✅ Simulation completed: Mean P&L = {mean_pnl:.4f}, Std Dev = {std_pnl:.4f}")
 
             except Exception as e:
                 st.error(f"❌ Delta hedging simulation failed: {str(e)}")
-
-
-
