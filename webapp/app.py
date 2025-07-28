@@ -20,7 +20,8 @@ from src.volatility.sabr_calibration import SABRCalibrator
 from src.volatility.stochastic_volatility import calibrate_heston
 from src.volatility.svi_calibration import SVI_Calibrator
 from src.volatility.volatility_surface import VolatilitySurface
-from src.volatility.hedging_simulator import DeltaHedgingSimulator
+from src.hedging.hedging_simulator import DeltaHedgingSimulator
+from src.hedging.heston_hedging_simulator import HestonDeltaHedgingSimulator
 
 
 
@@ -44,7 +45,7 @@ with col1:
 # --- Option menu ---
 selected = option_menu(
     menu_title=None,
-    options=["Black-Scholes", "Binomial", "Monte Carlo", "Risk Analysis", "Volatility"],
+    options=["Black-Scholes", "Binomial", "Monte Carlo", "Risk Analysis", "Volatility", "Hedging"],
     icons=["calculator", "tree", "shuffle", "activity", "bar-chart"],
     orientation="horizontal"
 )
@@ -613,8 +614,15 @@ if selected == "Volatility":
 
 
 
-    # -------- Delta Hedging Simulator (Tab 5) --------
-    with vol_tab[5]:
+
+
+if selected == "Hedging":
+
+    st.header("Hedging Strategies")
+    
+    hedge_subtabs = st.tabs(["Delta Hedging", "Heston Delta Hedging"])  # más adelante amplías
+
+    with hedge_subtabs[0]:
         st.subheader("Delta Hedging Simulator")
 
         st.markdown(
@@ -692,3 +700,80 @@ if selected == "Volatility":
 
             except Exception as e:
                 st.error(f"❌ Delta hedging simulation failed: {str(e)}")
+
+
+
+
+
+
+    with hedge_subtabs[1]:
+        st.subheader("Heston Delta Hedging Simulator")
+
+        st.markdown(
+            "Simulate delta hedging of a European option under the **Heston stochastic volatility model**. "
+            "This allows for more realistic volatility dynamics compared to the Black-Scholes model."
+        )
+
+        # --- Input form for Heston simulation parameters ---
+        with st.form("heston_hedging_form"):
+            col1, col2 = st.columns(2)
+
+            with col1:
+                S0 = st.number_input("Initial Spot Price (S₀)", value=100.0, format="%.2f", key="heston_dh_spot")
+                K = st.number_input("Strike Price (K)", value=100.0, format="%.2f", key="heston_dh_strike")
+                T = st.number_input("Time to Maturity (T in years)", value=1.0, format="%.2f", key="heston_dh_T")
+                r = st.number_input("Risk-Free Rate (r)", value=0.01, format="%.4f", key="heston_dh_r")
+
+            with col2:
+                v0 = st.number_input("Initial Variance (v₀)", value=0.04, format="%.4f", key="heston_dh_v0")
+                kappa = st.number_input("Mean Reversion Speed (κ)", value=2.0, format="%.2f", key="heston_dh_kappa")
+                theta = st.number_input("Long-Term Variance (θ)", value=0.04, format="%.4f", key="heston_dh_theta")
+                sigma_v = st.number_input("Vol Volatility (σᵥ)", value=0.3, format="%.4f", key="heston_dh_sigma_v")
+                rho = st.number_input("Correlation (ρ)", value=-0.7, format="%.2f", key="heston_dh_rho")
+
+            steps = st.slider("Number of Hedge Steps", min_value=10, max_value=365, value=50, key="heston_dh_steps")
+            n_paths = st.slider("Number of Simulated Paths", min_value=10, max_value=1000, value=100, step=10, key="heston_dh_paths")
+
+            submitted = st.form_submit_button("Run Heston Delta Hedging Simulation")
+
+        # --- Execute simulation and plot results ---
+        if submitted:
+            try:
+                simulator = HestonDeltaHedgingSimulator(
+                    S0=S0, K=K, T=T, r=r,
+                    v0=v0, kappa=kappa, theta=theta,
+                    sigma_v=sigma_v, rho=rho,
+                    N_steps=steps, N_paths=n_paths
+                )
+
+                pnl_paths, time_grid, pnl_over_time, hedging_errors = simulator.simulate()
+
+                mean_pnl_over_time = np.mean(pnl_over_time, axis=0)
+                mean_abs_error_over_time = np.mean(np.abs(hedging_errors), axis=0)
+
+                fig_pnl_time = PlotUtils.plot_hedging_pnl(
+                    time_grid=time_grid,
+                    pnl=mean_pnl_over_time,
+                    title="📈 Heston Delta Hedging P&L Over Time"
+                )
+                st.plotly_chart(fig_pnl_time, use_container_width=True)
+
+                fig_pnl_hist = PlotUtils.plot_hedging_pnl_histogram(
+                    pnl_paths=pnl_paths,
+                    title="📊 Final P&L Distribution (Heston)"
+                )
+                st.plotly_chart(fig_pnl_hist, use_container_width=True)
+
+                fig_error = PlotUtils.plot_hedging_error_over_time(
+                    time_grid=time_grid,
+                    hedging_errors=mean_abs_error_over_time,
+                    title="📉 Mean Absolute Hedging Error (Heston)"
+                )
+                st.plotly_chart(fig_error, use_container_width=True)
+
+                mean_pnl = np.mean(pnl_paths)
+                std_pnl = np.std(pnl_paths)
+                st.success(f"✅ Heston simulation completed: Mean P&L = {mean_pnl:.4f}, Std Dev = {std_pnl:.4f}")
+
+            except Exception as e:
+                st.error(f"❌ Heston delta hedging simulation failed: {str(e)}")
