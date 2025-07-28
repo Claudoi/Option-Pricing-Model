@@ -22,6 +22,7 @@ from src.volatility.svi_calibration import SVI_Calibrator
 from src.volatility.volatility_surface import VolatilitySurface
 from src.hedging.hedging_simulator import DeltaHedgingSimulator
 from src.hedging.heston_hedging_simulator import HestonDeltaHedgingSimulator
+from src.hedging.hedging_pnl_decomposition import HedgingPnLAttribution
 
 
 
@@ -620,7 +621,7 @@ if selected == "Hedging":
 
     st.header("Hedging Strategies")
     
-    hedge_subtabs = st.tabs(["Delta Hedging", "Heston Delta Hedging"])  # más adelante amplías
+    hedge_subtabs = st.tabs(["Delta Hedging", "Heston Delta Hedging", "P&L Attribution"])  # más adelante amplías
 
     with hedge_subtabs[0]:
         st.subheader("Delta Hedging Simulator")
@@ -697,6 +698,18 @@ if selected == "Hedging":
                 mean_pnl = np.mean(pnl_paths)
                 std_pnl = np.std(pnl_paths)
                 st.success(f"✅ Simulation completed: Mean P&L = {mean_pnl:.4f}, Std Dev = {std_pnl:.4f}")
+                
+                if hasattr(simulator, "last_S") and simulator.last_S is not None:
+                    print("DEBUG - Saving last_S shape:", simulator.last_S.shape)
+                    st.session_state["dh_results"] = {
+                        "S": simulator.last_S,
+                        "time_grid": time_grid,
+                        "K": K,
+                        "r": r,
+                        "sigma": sigma,
+                        "option_type": option_type
+                    }
+
 
             except Exception as e:
                 st.error(f"❌ Delta hedging simulation failed: {str(e)}")
@@ -777,3 +790,69 @@ if selected == "Hedging":
 
             except Exception as e:
                 st.error(f"❌ Heston delta hedging simulation failed: {str(e)}")
+
+
+
+    with hedge_subtabs[2]:
+        st.subheader("Delta Hedging P&L Decomposition (Black-Scholes)")
+
+        st.markdown(
+            "Analyze the sources of profit and loss in a delta hedging strategy under the **Black-Scholes model**, "
+            "including the contribution of Delta, Theta, and residual terms due to discrete rebalancing.\n\n"
+            "⚠️ Please run the Delta Hedging simulation first."
+        )
+
+        if "dh_results" in st.session_state and st.session_state["dh_results"] is not None:
+            results = st.session_state["dh_results"]
+
+            # --- Safety checks ---
+            S = results.get("S", None)
+            time_grid = results.get("time_grid", None)
+
+            if not isinstance(S, np.ndarray):
+                st.error("❌ Error: `S` is not a NumPy array.")
+            elif S is None or time_grid is None:
+                st.error("❌ Error: Missing stored path or time grid.")
+            elif len(S) != len(time_grid):
+                st.error(f"❌ Error: Mismatch — S has length {len(S)}, time_grid has length {len(time_grid)}.")
+            else:
+                try:
+                    K = results["K"]
+                    r = results["r"]
+                    sigma = results["sigma"]
+                    option_type = results["option_type"]
+
+                    from src.hedging_pnl_decomposition import HedgingPnLAttribution
+
+                    decomposer = HedgingPnLAttribution(
+                        S=S,
+                        time_grid=time_grid,
+                        K=K,
+                        r=r,
+                        sigma=sigma,
+                        option_type=option_type
+                    )
+
+                    pnl_components = decomposer.decompose()
+
+                    fig_decomp = PlotUtils.plot_hedging_pnl_components(
+                        time_grid=time_grid[:-1],
+                        delta_pnl=pnl_components["delta_pnl"],
+                        theta_pnl=pnl_components["theta_pnl"],
+                        residual_pnl=pnl_components["residual_pnl"],
+                        title="📊 Hedging P&L Decomposition"
+                    )
+                    st.plotly_chart(fig_decomp, use_container_width=True)
+
+                    fig_total = PlotUtils.plot_hedging_total_pnl(
+                        time_grid=time_grid[:-1],
+                        total_pnl=pnl_components["total_pnl"],
+                        title="📈 Cumulative Total P&L"
+                    )
+                    st.plotly_chart(fig_total, use_container_width=True)
+
+                except Exception as e:
+                    st.error(f"❌ Failed to compute P&L attribution: {str(e)}")
+
+        else:
+            st.warning("⚠️ Run the Delta Hedging simulation to activate this tab.")

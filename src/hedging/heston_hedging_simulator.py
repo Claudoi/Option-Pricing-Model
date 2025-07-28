@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.stats import norm
+from src.models.pricing_black_scholes import BlackScholesOption
 
 
 class HestonDeltaHedgingSimulator:
@@ -9,9 +9,8 @@ class HestonDeltaHedgingSimulator:
     """
 
     def __init__(self, S0: float, K: float, T: float, r: float, v0: float, kappa: float, theta: float,
-        sigma_v: float, rho: float, option_type: str = "call", N_steps: int = 50, N_paths: int = 1000,
-        hedge_freq: int = 1, bump: float = 1e-4,
-    ):
+                 sigma_v: float, rho: float, option_type: str = "call", N_steps: int = 50, N_paths: int = 1000,
+                 hedge_freq: int = 1, bump: float = 1e-4):
         self.S0 = S0
         self.K = K
         self.T = T
@@ -33,23 +32,18 @@ class HestonDeltaHedgingSimulator:
 
 
     def _black_scholes_price(self, S, K, T, r, sigma, option_type):
-        if T <= 0:
-            return max(S - K, 0) if option_type == "call" else max(K - S, 0)
-
-        d1 = (np.log(S / K) + (r + 0.5 * sigma**2) * T) / (sigma * np.sqrt(T))
-        d2 = d1 - sigma * np.sqrt(T)
-
-        if option_type == "call":
-            return S * norm.cdf(d1) - K * np.exp(-r * T) * norm.cdf(d2)
-        else:
-            return K * np.exp(-r * T) * norm.cdf(-d2) - S * norm.cdf(-d1)
+        sigma = max(sigma, 1e-6)  # Ensure sigma is always positive
+        T = max(T, 1e-6)          # Ensure T is always positive
+        bs = BlackScholesOption(S, K, T, r, sigma, option_type)
+        return bs.price()
 
 
 
     def _finite_diff_delta(self, S, v, T_remain):
         """Approximate delta using central finite differences under BS with local vol sqrt(v)"""
-        price_up = self._black_scholes_price(S + self.bump, self.K, T_remain, self.r, np.sqrt(v), self.option_type)
-        price_down = self._black_scholes_price(S - self.bump, self.K, T_remain, self.r, np.sqrt(v), self.option_type)
+        sigma = max(np.sqrt(v), 1e-6)
+        price_up = self._black_scholes_price(S + self.bump, self.K, T_remain, self.r, sigma, self.option_type)
+        price_down = self._black_scholes_price(S - self.bump, self.K, T_remain, self.r, sigma, self.option_type)
         return (price_up - price_down) / (2 * self.bump)
 
 
@@ -65,14 +59,20 @@ class HestonDeltaHedgingSimulator:
             S[0] = self.S0
             v[0] = self.v0
 
+            # Simulate Heston path
             for t in range(1, self.N_steps + 1):
                 z1 = np.random.randn()
                 z2 = np.random.randn()
                 dw1 = z1
-                dw2 = self.rho * z1 + np.sqrt(1 - self.rho**2) * z2
+                dw2 = self.rho * z1 + np.sqrt(1 - self.rho ** 2) * z2
 
-                v[t] = np.abs(v[t - 1] + self.kappa * (self.theta - v[t - 1]) * self.dt + self.sigma_v * np.sqrt(v[t - 1]) * np.sqrt(self.dt) * dw2)
-                S[t] = S[t - 1] * np.exp((self.r - 0.5 * v[t - 1]) * self.dt + np.sqrt(v[t - 1]) * np.sqrt(self.dt) * dw1)
+                v_prev = max(v[t - 1], 1e-8)
+                v[t] = np.abs(v[t - 1] +
+                              self.kappa * (self.theta - v[t - 1]) * self.dt +
+                              self.sigma_v * np.sqrt(v_prev) * np.sqrt(self.dt) * dw2)
+
+                S[t] = S[t - 1] * np.exp((self.r - 0.5 * v_prev) * self.dt +
+                                         np.sqrt(v_prev) * np.sqrt(self.dt) * dw1)
 
             cash_account = 0.0
             delta_prev = 0.0
@@ -93,17 +93,24 @@ class HestonDeltaHedgingSimulator:
                 delta_prev = delta
 
                 portfolio = delta * S_t + cash_account
-                option_val = self._black_scholes_price(S_t, self.K, T_remain, self.r, np.sqrt(v_t), self.option_type)
+                option_val = self._black_scholes_price(S_t, self.K, T_remain, self.r,
+                                                       np.sqrt(max(v_t, 1e-8)), self.option_type)
 
                 pnl_t.append(portfolio - option_val)
                 error_t.append(abs(portfolio - option_val))
 
-            payoff = self._black_scholes_price(S[-1], self.K, 0, self.r, np.sqrt(v[-1]), self.option_type)
-            portfolio_final = delta_prev * S[-1] + cash_account
-            pnl = portfolio_final - payoff
+            # Final payoff and PnL at maturity
+            S_final = S[-1]
+            if self.option_type == "call":
+                payoff = max(S_final - self.K, 0)
+            else:
+                payoff = max(self.K - S_final, 0)
 
+            portfolio_final = delta_prev * S_final + cash_account
+            pnl = portfolio_final - payoff
             pnl_paths.append(pnl)
 
+            # Padding
             pnl_full = np.zeros(self.N_steps + 1)
             err_full = np.zeros(self.N_steps + 1)
             pnl_full[:len(pnl_t)] = pnl_t

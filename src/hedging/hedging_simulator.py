@@ -34,6 +34,8 @@ class DeltaHedgingSimulator:
         self.N_paths = N_paths
         self.hedge_freq = hedge_freq
 
+        self.last_S = None
+        
         self.dt = T / N_steps
         self.time_grid = np.linspace(0, T, N_steps + 1)
 
@@ -75,16 +77,12 @@ class DeltaHedgingSimulator:
 
         Returns:
             tuple: (pnl_paths, time_grid, pnl_over_time, hedging_errors)
-                - pnl_paths: Array with final P&L per path.
-                - time_grid: Time points of the simulation.
-                - pnl_over_time: Array (N_paths, N_steps+1) with P&L over time.
-                - hedging_errors: Array (N_paths, N_steps+1) with hedging error over time.
         """
         pnl_paths = []
         pnl_over_time = []
         hedging_errors = []
 
-        for _ in range(self.N_paths):
+        for i in range(self.N_paths):
             S = np.zeros(self.N_steps + 1)
             S[0] = self.S0
 
@@ -94,6 +92,10 @@ class DeltaHedgingSimulator:
                     (self.r - 0.5 * self.sigma ** 2) * self.dt +
                     self.sigma * np.sqrt(self.dt) * z
                 )
+
+            # ✅ Guardar el primer path simulado
+            if i == 0:
+                self.last_S = S.copy()
 
             cash_account = 0.0
             delta_prev = 0.0
@@ -116,7 +118,7 @@ class DeltaHedgingSimulator:
                 option_val = self._black_scholes_price(S_t, self.K, T_remain, self.r, self.sigma, self.option_type)
 
                 pnl_t.append(portfolio - option_val)
-                error_t.append(abs(portfolio - option_val))  # <-- absolute hedging error
+                error_t.append(abs(portfolio - option_val))
 
             payoff = self._black_scholes_price(S[-1], self.K, 0, self.r, self.sigma, self.option_type)
             portfolio_final = delta_prev * S[-1] + cash_account

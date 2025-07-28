@@ -716,3 +716,48 @@ class PlotUtils:
         )
 
         return fig
+    
+
+    @staticmethod
+    def plot_hedging_pnl_decomposition(pnl_dict: dict, time_grid: np.ndarray):
+        """
+        Stacked bar plot of delta, theta and residual PnL components.
+        """
+        steps = len(pnl_dict["delta_pnl"])
+        time = time_grid[:steps]
+
+        fig = go.Figure()
+        fig.add_trace(go.Bar(name="Delta PnL", x=time, y=pnl_dict["delta_pnl"]))
+        fig.add_trace(go.Bar(name="Theta PnL", x=time, y=pnl_dict["theta_pnl"]))
+        fig.add_trace(go.Bar(name="Residual PnL", x=time, y=pnl_dict["residual_pnl"]))
+
+        fig.update_layout(
+            title="PnL Decomposition (Delta + Theta + Residual)",
+            barmode='stack',
+            xaxis_title="Time",
+            yaxis_title="PnL",
+            legend_title="Component",
+            height=500
+        )
+        return fig
+
+
+    @staticmethod
+    def plot_total_pnl_cumulative(pnl_dict: dict, time_grid: np.ndarray):
+        """
+        Line chart of cumulative total PnL over time.
+        """
+        steps = len(pnl_dict["total_pnl"])
+        time = time_grid[:steps]
+        cumulative_pnl = np.cumsum(pnl_dict["total_pnl"])
+
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=time, y=cumulative_pnl, mode="lines+markers", name="Cumulative Total PnL"))
+
+        fig.update_layout(
+            title="Cumulative Total PnL Over Time",
+            xaxis_title="Time",
+            yaxis_title="Cumulative PnL",
+            height=500
+        )
+        return fig
