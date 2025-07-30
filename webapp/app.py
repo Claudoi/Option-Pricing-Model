@@ -510,58 +510,77 @@ if selected == "Volatility":
 
 
 
-    # ------------- SABR Calibration ----------------
+    # ------------- SABR Calibration (Smile + Surface) ----------------
     with vol_tab[2]:
-        st.subheader("📈 SABR Volatility Smile Calibration")
+        st.subheader("📈 SABR Volatility Calibration")
 
-        st.markdown(
-            "Enter a vector of strikes and the corresponding market implied volatilities to calibrate the **SABR model** using Hagan's approximation."
-        )
+        calib_mode = st.radio("Calibration Mode", ["Single Maturity (Smile)", "Full Surface"], key="sabr_mode")
 
-        # Input fields
-        K_input = st.text_area("Strikes (comma separated)", "90, 100, 110, 120", key="sabr_K")
-        iv_input = st.text_area("Market IVs (comma separated)", "0.22, 0.21, 0.23, 0.24", key="sabr_market_iv")
-
-        # Input columns for forward and maturity
-        col1, col2 = st.columns(2)
-        with col1:
+        if calib_mode == "Single Maturity (Smile)":
+            K_input = st.text_area("Strikes (comma separated)", "90, 100, 110, 120", key="sabr_K")
+            iv_input = st.text_area("Market IVs (comma separated)", "0.22, 0.21, 0.23, 0.24", key="sabr_market_iv")
             F = st.number_input("Forward Price (F)", value=100.0, key="sabr_forward")
-        with col2:
             T = st.number_input("Maturity (T, in years)", value=0.5, format="%.2f", key="sabr_maturity")
 
-        # Calibration button
-        if st.button("🎯 Calibrate SABR", key="sabr_btn"):
-            try:
-                # Parse input arrays
-                strikes = np.array([float(k.strip()) for k in K_input.split(",")])
-                ivs = np.array([float(iv.strip()) for iv in iv_input.split(",")])
+            if st.button("🎯 Calibrate SABR (Smile)", key="sabr_btn"):
+                try:
+                    strikes = np.array([float(x.strip()) for x in K_input.split(",")])
+                    ivs = np.array([float(x.strip()) for x in iv_input.split(",")])
+                    if len(strikes) != len(ivs):
+                        st.warning("⚠️ Number of strikes and implied vols must match.")
+                    else:
+                        sabr = SABRCalibrator(F, strikes, T, ivs, beta_fixed=0.5)
+                        params = sabr.calibrate()
+                        fitted_vols = sabr.model_vols()
 
-                # Validation
-                if len(strikes) != len(ivs):
-                    st.warning("⚠️ Number of strikes and implied vols must match.")
-                else:
-                    # SABR calibration
-                    sabr = SABRCalibrator(F, strikes, T, ivs, beta_fixed=0.5)
-                    params = sabr.calibrate()
-                    fitted_vols = sabr.model_vols()
+                        st.success("✅ Calibrated SABR Parameters:")
+                        st.markdown(f"""
+                        - **Alpha**: `{params[0]:.4f}`
+                        - **Beta**: `{params[1]:.4f}`
+                        - **Rho**: `{params[2]:.4f}`
+                        - **Nu**: `{params[3]:.4f}`
+                        """)
 
-                    # Display calibrated parameters
-                    st.success("✅ Calibrated SABR Parameters:")
-                    st.markdown(f"""
-                    - **Alpha**: `{params[0]:.4f}`
-                    - **Beta**: `{params[1]:.4f}`
-                    - **Rho**: `{params[2]:.4f}`
-                    - **Nu**: `{params[3]:.4f}`
-                    """)
+                        fig = PlotUtils.plot_sabr_fit_surface(strikes, ivs, fitted_vols, F, T)
+                        st.plotly_chart(fig, use_container_width=True)
+                except Exception as e:
+                    st.error(f"❌ SABR calibration failed: {e}")
 
-                    # Visualization
-                    fig = PlotUtils.plot_sabr_fit_surface(
-                        strikes, ivs, fitted_vols, F, T
+        else:
+            st.markdown(
+                "Upload a CSV file with columns: `maturity`, `strike`, `implied_vol` to calibrate the full SABR volatility surface."
+            )
+            uploaded_file = st.file_uploader("Upload SABR surface data (.csv)", type=["csv"], key="sabr_surface_file")
+            forward_price = st.number_input("Forward Price (F)", value=100.0, key="sabr_surface_forward")
+
+            if uploaded_file is not None:
+                try:
+                    df = pd.read_csv(uploaded_file)
+
+                    required_columns = {"maturity", "strike", "implied_vol"}
+                    if not required_columns.issubset(df.columns):
+                        raise ValueError("CSV must contain the columns: maturity, strike, implied_vol")
+
+                    grouped = df.groupby("maturity")
+
+                    maturities = []
+                    strike_matrix = []
+                    iv_matrix = []
+
+                    for T, group in grouped:
+                        maturities.append(float(T))
+                        strike_matrix.append(group["strike"].values)
+                        iv_matrix.append(group["implied_vol"].values)
+
+                    vol_surface, sabr_params = SABRCalibrator.calibrate_sabr_surface(
+                        strike_matrix, iv_matrix, maturities, forward_price
                     )
+
+                    fig = PlotUtils.plot_sabr_vol_surface(strike_matrix, maturities, vol_surface)
                     st.plotly_chart(fig, use_container_width=True)
 
-            except Exception as e:
-                st.error(f"❌ SABR calibration failed: {e}")
+                except Exception as e:
+                    st.error(f"❌ Failed to calibrate SABR surface: {e}")
 
 
 

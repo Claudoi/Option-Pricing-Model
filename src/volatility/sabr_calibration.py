@@ -87,19 +87,19 @@ class SABRCalibrator:
         ])
 
 
-    def calibrate_sabr_surface(forward_price, strike_matrix, maturity_vector, iv_matrix, beta=0.5):
-
-        surface_vols = []
+    @staticmethod
+    def calibrate_sabr_surface(strike_matrix, iv_matrix, maturities, forward_price, beta=0.5):
+        vol_surface = []
         sabr_params = []
 
-        for i, T in enumerate(maturity_vector):
-            K = strike_matrix[i]
-            iv = iv_matrix[i]
-            calibrator = SABRCalibrator(F=forward_price, K=K, T=T, market_vols=iv, beta_fixed=beta)
+        for i, T in enumerate(maturities):
+            strikes = strike_matrix[i]
+            ivs = iv_matrix[i]
+            calibrator = SABRCalibrator(forward_price, strikes, T, ivs, beta_fixed=beta)
             params = calibrator.calibrate()
             fitted_vols = calibrator.model_vols()
-
-            surface_vols.append(fitted_vols)
+            vol_surface.append(fitted_vols)
             sabr_params.append(params)
 
-        return np.array(surface_vols), sabr_params
+        return np.array(vol_surface), sabr_params
+
