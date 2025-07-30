@@ -440,47 +440,129 @@ if selected == "Volatility":
 
 
 
-    # ------------- SVI Calibration -----------------
+
+    # ------------- SVI Calibration (Smile + Surface) ----------------
     with vol_tab[1]:
-        st.subheader("SVI Smile Calibration")
-        k = st.text_area("Log-moneyness (comma separated)", "0, -0.1, 0.1, 0.2", key="svi_k")
-        iv = st.text_area("Implied Vols (comma separated)", "0.25, 0.24, 0.26, 0.27", key="svi_iv")
-        T_svi = st.number_input("Maturity (years)", value=0.5, format="%.2f", key="svi_maturity")
-        if st.button("Calibrate SVI", key="svi_btn"):
-            try:
-                k_arr = np.array([float(x) for x in k.split(",")])
-                iv_arr = np.array([float(x) for x in iv.split(",")])
-                svi = SVI_Calibrator(k_arr, iv_arr, T_svi)
-                params, iv_fit = svi.calibrate()
-                st.success(f"SVI Params: a={params[0]:.4f}, b={params[1]:.4f}, rho={params[2]:.4f}, m={params[3]:.4f}, sigma={params[4]:.4f}")
-                fig = PlotUtils.plot_svi_fit(k_arr, iv_arr, iv_fit, T_svi)
-                st.plotly_chart(fig, use_container_width=True)
-            except Exception as e:
-                st.error(f"SVI Calibration failed: {e}")
+        st.subheader("📉 SVI Volatility Calibration")
+
+        calib_mode = st.radio("Calibration Mode", ["Single Maturity (Smile)", "Full Surface"], key="svi_mode")
+
+        if calib_mode == "Single Maturity (Smile)":
+            k_input = st.text_area("Log-Moneyness (comma separated)", "0, -0.1, 0.1, 0.2", key="svi_k")
+            iv_input = st.text_area("Market IVs (comma separated)", "0.25, 0.24, 0.26, 0.27", key="svi_iv")
+            T = st.number_input("Maturity (T, in years)", value=0.5, format="%.2f", key="svi_maturity")
+
+            if st.button("⚙️ Calibrate SVI (Smile)", key="svi_btn"):
+                try:
+                    k_vals = np.array([float(x.strip()) for x in k_input.split(",")])
+                    iv_vals = np.array([float(x.strip()) for x in iv_input.split(",")])
+
+                    if len(k_vals) != len(iv_vals):
+                        st.warning("⚠️ Number of log-moneyness values and implied vols must match.")
+                    else:
+                        svi = SVI_Calibrator(k_vals, iv_vals, T)
+                        params, fitted_vols = svi.calibrate()
+
+                        st.success("✅ Calibrated SVI Parameters:")
+                        st.markdown(f"""
+                        - **a**: `{params[0]:.4f}`
+                        - **b**: `{params[1]:.4f}`
+                        - **rho**: `{params[2]:.4f}`
+                        - **m**: `{params[3]:.4f}`
+                        - **sigma**: `{params[4]:.4f}`
+                        """)
+
+                        fig = PlotUtils.plot_svi_fit(k_vals, iv_vals, fitted_vols, T)
+                        st.plotly_chart(fig, use_container_width=True)
+
+                except Exception as e:
+                    st.error(f"❌ SVI calibration failed: {e}")
+
+        else:
+            st.markdown(
+                "Upload a CSV file with columns: `maturity`, `log_moneyness`, `implied_vol` to calibrate the full SVI volatility surface."
+            )
+            uploaded_file = st.file_uploader("Upload SVI surface data (.csv)", type=["csv"], key="svi_surface_file")
+
+            if uploaded_file is not None:
+                try:
+                    df = pd.read_csv(uploaded_file)
+                    grouped = df.groupby("maturity")
+
+                    maturities = []
+                    k_matrix = []
+                    iv_matrix = []
+
+                    for T, group in grouped:
+                        maturities.append(float(T))
+                        k_matrix.append(group["log_moneyness"].values)
+                        iv_matrix.append(group["implied_vol"].values)
+
+                    vol_surface, svi_params = SVI_Calibrator.calibrate_svi_surface(k_matrix, iv_matrix, maturities)
+
+                    fig = PlotUtils.plot_svi_vol_surface(k_matrix, maturities, vol_surface)
+                    st.plotly_chart(fig, use_container_width=True)
+
+                except Exception as e:
+                    st.error(f"❌ Failed to calibrate SVI surface: {e}")
+
+
 
 
 
     # ------------- SABR Calibration ----------------
     with vol_tab[2]:
-        st.subheader("SABR Volatility Fit")
-        K = st.text_area("Strikes (comma separated)", "90, 100, 110, 120", key="sabr_K")
-        market_vols = st.text_area("Market IV (comma separated)", "0.22, 0.21, 0.23, 0.24", key="sabr_market_iv")
-        F = st.number_input("Forward Price", value=100.0, key="sabr_forward")
-        T_sabr = st.number_input("Maturity (years)", value=0.5, format="%.2f", key="sabr_maturity")
-        if st.button("Calibrate SABR", key="sabr_btn"):
+        st.subheader("📈 SABR Volatility Smile Calibration")
+
+        st.markdown(
+            "Enter a vector of strikes and the corresponding market implied volatilities to calibrate the **SABR model** using Hagan's approximation."
+        )
+
+        # Input fields
+        K_input = st.text_area("Strikes (comma separated)", "90, 100, 110, 120", key="sabr_K")
+        iv_input = st.text_area("Market IVs (comma separated)", "0.22, 0.21, 0.23, 0.24", key="sabr_market_iv")
+
+        # Input columns for forward and maturity
+        col1, col2 = st.columns(2)
+        with col1:
+            F = st.number_input("Forward Price (F)", value=100.0, key="sabr_forward")
+        with col2:
+            T = st.number_input("Maturity (T, in years)", value=0.5, format="%.2f", key="sabr_maturity")
+
+        # Calibration button
+        if st.button("🎯 Calibrate SABR", key="sabr_btn"):
             try:
-                K_arr = np.array([float(x) for x in K.split(",")])
-                market_vols_arr = np.array([float(x) for x in market_vols.split(",")])
-                F_val = float(F)
-                T_val = float(T_sabr)
-                sabr = SABRCalibrator(F_val, K_arr, T_val, market_vols_arr, beta_fixed=0.5)
-                params = sabr.calibrate()      # <--- ¡Así!
-                sabr_vols = sabr.model_vols()
-                st.success(f"SABR Params: alpha={params[0]:.4f}, beta={params[1]:.4f}, rho={params[2]:.4f}, nu={params[3]:.4f}")
-                fig = PlotUtils.plot_sabr_fit_surface(K_arr, market_vols_arr, sabr_vols, F_val, T_val)
-                st.plotly_chart(fig, use_container_width=True)
+                # Parse input arrays
+                strikes = np.array([float(k.strip()) for k in K_input.split(",")])
+                ivs = np.array([float(iv.strip()) for iv in iv_input.split(",")])
+
+                # Validation
+                if len(strikes) != len(ivs):
+                    st.warning("⚠️ Number of strikes and implied vols must match.")
+                else:
+                    # SABR calibration
+                    sabr = SABRCalibrator(F, strikes, T, ivs, beta_fixed=0.5)
+                    params = sabr.calibrate()
+                    fitted_vols = sabr.model_vols()
+
+                    # Display calibrated parameters
+                    st.success("✅ Calibrated SABR Parameters:")
+                    st.markdown(f"""
+                    - **Alpha**: `{params[0]:.4f}`
+                    - **Beta**: `{params[1]:.4f}`
+                    - **Rho**: `{params[2]:.4f}`
+                    - **Nu**: `{params[3]:.4f}`
+                    """)
+
+                    # Visualization
+                    fig = PlotUtils.plot_sabr_fit_surface(
+                        strikes, ivs, fitted_vols, F, T
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+
             except Exception as e:
-                st.error(f"SABR calibration failed: {e}")
+                st.error(f"❌ SABR calibration failed: {e}")
+
 
 
 

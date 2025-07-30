@@ -59,3 +59,20 @@ class SVI_Calibrator:
         if self.implied_vol_fit_ is None:
             raise ValueError("Model not calibrated yet. Call calibrate() first.")
         return self.implied_vol_fit_
+
+
+    @staticmethod
+    def calibrate_svi_surface(k_matrix, iv_matrix, maturities):
+        vol_surface = []
+        svi_params = []
+
+        for i, T in enumerate(maturities):
+            k = k_matrix[i]
+            iv = iv_matrix[i]
+            calibrator = SVI_Calibrator(k, iv, T)
+            params, fitted_vols = calibrator.calibrate()
+            vol_surface.append(fitted_vols)
+            svi_params.append(params)
+
+        return np.array(vol_surface), svi_params
+

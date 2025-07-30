@@ -297,6 +297,7 @@ class PlotUtils:
         )
         return fig
 
+
     @staticmethod
     def plot_svi_fit(log_moneyness, implied_vol, implied_vol_fit, T):
         k_sorted = np.argsort(log_moneyness)
@@ -305,18 +306,23 @@ class PlotUtils:
         iv_model = implied_vol_fit[k_sorted]
 
         fig = go.Figure()
-        fig.add_trace(go.Scatter(x=k, y=iv_market, mode="markers", name="Market"))
-        fig.add_trace(go.Scatter(x=k, y=iv_model, mode="lines", name="SVI Fit"))
+        fig.add_trace(go.Scatter(x=k, y=iv_market, mode="markers", name="Market IV", marker=dict(size=8)))
+        fig.add_trace(go.Scatter(x=k, y=iv_model, mode="lines+markers", name="SVI Fit", line=dict(dash="solid")))
 
         fig.update_layout(
-            title=f"SVI Smile Fit (T = {T:.2f} years)",
+            title=f"SVI Volatility Smile (T = {T:.2f} yrs)",
             xaxis_title="Log-Moneyness (k = log(K/F))",
-            yaxis_title="Implied Volatility"
+            yaxis_title="Implied Volatility",
+            legend_title="Vol Type",
+            height=500
         )
+
         return fig
 
+
+
     @staticmethod
-    def plot_sabr_fit_surface(K: np.ndarray, market_vols: np.ndarray, sabr_vols: np.ndarray, F: float, T: float):
+    def plot_sabr_fit_surface(K, market_vols, sabr_vols, F, T):
         fig = go.Figure()
 
         fig.add_trace(go.Scatter(
@@ -330,15 +336,70 @@ class PlotUtils:
         fig.add_trace(go.Scatter(
             x=K,
             y=sabr_vols,
-            mode="lines",
+            mode="lines+markers",
             name="SABR Fit",
             line=dict(color="firebrick", width=2, dash="dash")
         ))
 
         fig.update_layout(
-            title=f"SABR Volatility Fit (T={T:.2f} yrs, F={F})",
-            xaxis_title="Strike (K)",
-            yaxis_title="Implied Volatility"
+            title=f"SABR Volatility Smile (T = {T:.2f} yrs, F = {F})",
+            xaxis_title="Strike Price (K)",
+            yaxis_title="Implied Volatility",
+            legend_title="Vol Type",
+            height=500
+        )
+
+        return fig
+
+
+    @staticmethod
+    def plot_sabr_fit_surface(K, market_vols, sabr_vols, F, T):
+        fig = go.Figure()
+
+        fig.add_trace(go.Scatter(
+            x=K,
+            y=market_vols,
+            mode="markers+lines",
+            name="Market IV",
+            marker=dict(color="royalblue", size=6)
+        ))
+
+        fig.add_trace(go.Scatter(
+            x=K,
+            y=sabr_vols,
+            mode="lines+markers",
+            name="SABR Fit",
+            line=dict(color="firebrick", width=2, dash="dash")
+        ))
+
+        fig.update_layout(
+            title=f"SABR Volatility Smile (T = {T:.2f} yrs, F = {F})",
+            xaxis_title="Strike Price (K)",
+            yaxis_title="Implied Volatility",
+            legend_title="Vol Type",
+            height=500
+        )
+
+        return fig
+
+    
+    @staticmethod
+    def plot_sabr_vol_surface(strike_matrix, maturity_vector, vol_surface):
+        K_mesh, T_mesh = np.meshgrid(strike_matrix[0], maturity_vector, indexing="ij")
+
+        fig = go.Figure(data=[go.Surface(
+            x=K_mesh, y=T_mesh, z=vol_surface.T,
+            colorscale="Viridis"
+        )])
+
+        fig.update_layout(
+            title="SABR Volatility Surface",
+            scene=dict(
+                xaxis_title="Strike (K)",
+                yaxis_title="Maturity (T, years)",
+                zaxis_title="Implied Volatility"
+            ),
+            height=600
         )
 
         return fig

@@ -21,6 +21,7 @@ class SABRCalibrator:
         self.beta_fixed = beta_fixed
         self.params = None  # alpha, beta, rho, nu
 
+
     @staticmethod
     def sabr_volatility(F, K, T, alpha, beta, rho, nu):
         """Hagan's SABR approximation."""
@@ -42,11 +43,13 @@ class SABRCalibrator:
                         + ((2 - 3 * rho**2) * nu**2) / 24) * T
             return (numer / denom) * (z / x_z) * term1
 
+
     @staticmethod
     def _objective(params, F, K, T, market_vols):
         alpha, beta, rho, nu = params
         model_vols = [SABRCalibrator.sabr_volatility(F, k, T, alpha, beta, rho, nu) for k in K]
         return np.mean((np.array(model_vols) - market_vols) ** 2)
+
 
     def calibrate(self):
         """
@@ -70,6 +73,7 @@ class SABRCalibrator:
         self.params = result.x
         return self.params
 
+
     def model_vols(self):
         """
         Devuelve las volatilidades ajustadas con los parámetros calibrados.
@@ -81,3 +85,21 @@ class SABRCalibrator:
             SABRCalibrator.sabr_volatility(self.F, k, self.T, alpha, beta, rho, nu)
             for k in self.K
         ])
+
+
+    def calibrate_sabr_surface(forward_price, strike_matrix, maturity_vector, iv_matrix, beta=0.5):
+
+        surface_vols = []
+        sabr_params = []
+
+        for i, T in enumerate(maturity_vector):
+            K = strike_matrix[i]
+            iv = iv_matrix[i]
+            calibrator = SABRCalibrator(F=forward_price, K=K, T=T, market_vols=iv, beta_fixed=beta)
+            params = calibrator.calibrate()
+            fitted_vols = calibrator.model_vols()
+
+            surface_vols.append(fitted_vols)
+            sabr_params.append(params)
+
+        return np.array(surface_vols), sabr_params
