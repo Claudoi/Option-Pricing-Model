@@ -160,3 +160,98 @@ class MonteCarloOption:
         else:
             raise ValueError("Unsupported greek. Use 'delta', 'vega', 'rho', or 'theta'.")
         return (up - down) / (2 * h)
+
+
+    def greek_advanced(self, greek: str):
+        """
+        Compute Greeks using Pathwise Derivative Method for vanilla options.
+        Only valid for European options with differentiable payoff (e.g., call, put).
+        """
+        if self.option_type not in {"call", "put"}:
+            raise ValueError("Pathwise method only supports call/put options.")
+
+        dt = self.T / self.n_steps
+        Z = np.random.normal(0, 1, size=(self.n_simulations, self.n_steps))
+        paths = np.zeros_like(Z)
+        paths[:, 0] = self.S
+
+        for t in range(1, self.n_steps):
+            paths[:, t] = paths[:, t-1] * np.exp((self.r - 0.5 * self.sigma**2) * dt + self.sigma * np.sqrt(dt) * Z[:, t])
+
+        ST = paths[:, -1]
+        discount = np.exp(-self.r * self.T)
+
+        if self.option_type == "call":
+            d_payoff = (ST > self.K).astype(float)
+        else:
+            d_payoff = (ST < self.K).astype(float)
+
+        if greek == "delta":
+            delta_estimate = discount * np.mean(d_payoff * ST / self.S)
+            return delta_estimate
+
+        elif greek == "vega":
+            # Vega pathwise for lognormal model
+            ln_ST = np.log(ST / self.S)
+            vega_estimate = discount * np.mean(d_payoff * ln_ST * ST / self.sigma)
+            return vega_estimate
+
+        else:
+            raise ValueError("Only 'delta' and 'vega' supported in greek_advanced().")
+
+
+    def greek_lrm(self, greek: str):
+        """
+        Compute Greeks using the Likelihood Ratio Method (LRM).
+        Suitable for discontinuous payoffs (e.g., digital options).
+        """
+        dt = self.T / self.n_steps
+        Z = np.random.normal(0, 1, size=(self.n_simulations, self.n_steps))
+        paths = np.zeros_like(Z)
+        paths[:, 0] = self.S
+
+        for t in range(1, self.n_steps):
+            paths[:, t] = paths[:, t-1] * np.exp((self.r - 0.5 * self.sigma**2) * dt + self.sigma * np.sqrt(dt) * Z[:, t])
+
+        ST = paths[:, -1]
+        discount = np.exp(-self.r * self.T)
+        payoffs = calculate_payoff(ST, self.K, self.option_type)
+
+        if greek == "delta":
+            # d log(ST) / dS = 1 / S
+            weights = (np.log(ST / self.S) / (self.sigma**2 * self.T) + 1) / self.S
+            delta = discount * np.mean(payoffs * weights)
+            return delta
+
+        elif greek == "vega":
+            # d log(ST) / dσ = (Z̄ * sqrt(T) - σ * T) / σ
+            Z_avg = np.mean(Z, axis=1)
+            weights = (Z_avg * np.sqrt(self.T) - self.sigma * self.T) / self.sigma
+            vega = discount * np.mean(payoffs * weights)
+            return vega
+
+        else:
+            raise ValueError("Only 'delta' and 'vega' supported in greek_lrm().")
+
+
+
+    def greek_all(self):
+        """
+        Compare Delta and Vega using 3 methods:
+        - Finite Differences
+        - Pathwise Derivative Method
+        - Likelihood Ratio Method
+        """
+        results = {
+            "Delta": {
+                "FiniteDiff": self.greek("delta"),
+                "Pathwise": self.greek_advanced("delta"),
+                "LRM": self.greek_lrm("delta")
+            },
+            "Vega": {
+                "FiniteDiff": self.greek("vega"),
+                "Pathwise": self.greek_advanced("vega"),
+                "LRM": self.greek_lrm("vega")
+            }
+        }
+        return results

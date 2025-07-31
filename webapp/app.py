@@ -256,7 +256,6 @@ if selected == "Monte Carlo":
         try:
             mc = MonteCarloOption(S, K, T, r, sigma, option_type, n_sim, n_steps, q)
 
-            # --- Precio según la variante seleccionada ---
             if exotic == "Vanilla":
                 price = mc.price_vanilla()
             elif exotic == "Asian (arithmetic)":
@@ -274,40 +273,115 @@ if selected == "Monte Carlo":
             else:
                 price = None
 
-            st.success(f"Monte Carlo {exotic} Price: {price:.4f}")
+            # Save pricing and simulation data
+            st.session_state["mc_price"] = price
+            st.session_state["mc_paths"] = mc._simulate_paths()
+            st.session_state["mc_params"] = {
+                "S": S, "K": K, "T": T, "r": r, "sigma": sigma, "option_type": option_type,
+                "n_sim": n_sim, "n_steps": n_steps, "q": q
+            }
 
-            # --- Visualizar paths simulados ---
-            st.markdown("#### Monte Carlo Simulated Price Paths")
-            paths = mc._simulate_paths()
-            fig_paths = PlotUtils.plot_mc_paths(paths)
-            st.plotly_chart(fig_paths, use_container_width=True)
+            # Save Greeks
+            st.session_state["mc_greeks"] = {
+                "delta": mc.greek("delta"),
+                "vega": mc.greek("vega"),
+                "theta": mc.greek("theta"),
+                "rho": mc.greek("rho")
+            }
 
-            # --- Visualizar histograma de payoffs finales ---
-            st.markdown("#### Distribución de Payoffs Finales")
-            ST = paths[:, -1]
-            payoffs = np.maximum(ST - K, 0) if option_type == "call" else np.maximum(K - ST, 0)
-            fig_payoff = go.Figure(data=[go.Histogram(x=payoffs, nbinsx=50)])
-            fig_payoff.update_layout(
-                title="Distribución de Payoffs (Monte Carlo)",
-                xaxis_title="Payoff",
-                yaxis_title="Frecuencia"
-            )
-            st.plotly_chart(fig_payoff, use_container_width=True)
+            # Save delta comparison
+            strikes = np.linspace(K * 0.8, K * 1.2, 9)
+            delta_fd, delta_pw, delta_lr = [], [], []
+            for k_ in strikes:
+                try:
+                    delta_fd.append(MonteCarloOption(S, k_, T, r, sigma, option_type, n_sim, n_steps, q).greek("delta"))
+                    delta_pw.append(MonteCarloOption(S, k_, T, r, sigma, option_type, n_sim, n_steps, q).pathwise_delta())
+                    delta_lr.append(MonteCarloOption(S, k_, T, r, sigma, option_type, n_sim, n_steps, q).likelihood_ratio_delta())
+                except:
+                    delta_fd.append(np.nan); delta_pw.append(np.nan); delta_lr.append(np.nan)
 
-            # --- (Opcional) Visualizar griegas estimadas por diferencias finitas ---
-            st.markdown("#### Greeks (Estimadas vía Monte Carlo)")
-            col1, col2, col3 = st.columns(3)
-            delta = mc.greek("delta")
-            vega = mc.greek("vega")
-            theta = mc.greek("theta")
-            rho = mc.greek("rho")
-            col1.metric("Delta", f"{delta:.4f}")
-            col2.metric("Vega", f"{vega:.4f}")
-            col3.metric("Theta", f"{theta:.4f}")
-            col1.metric("Rho", f"{rho:.4f}")
+            st.session_state["mc_delta_comparison"] = {
+                "strikes": strikes,
+                "Finite Diff": delta_fd,
+                "Pathwise": delta_pw,
+                "Likelihood Ratio": delta_lr
+            }
 
         except Exception as e:
             st.error(f"Error in Monte Carlo pricing: {e}")
+
+    if "mc_price" in st.session_state:
+        st.success(f"Monte Carlo {exotic} Price: {st.session_state['mc_price']:.4f}")
+
+        # Plot paths
+        st.markdown("#### Monte Carlo Simulated Price Paths")
+        st.plotly_chart(PlotUtils.plot_mc_paths(st.session_state["mc_paths"]), use_container_width=True)
+
+        # Plot payoff histogram
+        ST = st.session_state["mc_paths"][:, -1]
+        K = st.session_state["mc_params"]["K"]
+        option_type = st.session_state["mc_params"]["option_type"]
+        payoffs = np.maximum(ST - K, 0) if option_type == "call" else np.maximum(K - ST, 0)
+        fig_payoff = go.Figure(data=[go.Histogram(x=payoffs, nbinsx=50)])
+        fig_payoff.update_layout(title="Payoff Distribution", xaxis_title="Payoff", yaxis_title="Frequency")
+        st.plotly_chart(fig_payoff, use_container_width=True)
+
+        # Show stored Greeks
+        st.markdown("#### Greeks (Estimated via Monte Carlo)")
+        col1, col2, col3 = st.columns(3)
+        greeks = st.session_state["mc_greeks"]
+        col1.metric("Delta", f"{greeks['delta']:.4f}")
+        col2.metric("Vega", f"{greeks['vega']:.4f}")
+        col3.metric("Theta", f"{greeks['theta']:.4f}")
+        col1.metric("Rho", f"{greeks['rho']:.4f}")
+
+        # Delta comparison chart
+        st.markdown("### Comparison of Delta Estimation Methods")
+        dc = st.session_state["mc_delta_comparison"]
+        greek_dict = {
+            "Finite Diff": dc["Finite Diff"],
+            "Pathwise": dc["Pathwise"],
+            "Likelihood Ratio": dc["Likelihood Ratio"]
+        }
+        st.plotly_chart(
+            PlotUtils.plot_mc_greek_comparison(dc["strikes"], greek_dict, "Delta", "Delta Estimation via Monte Carlo Methods"),
+            use_container_width=True
+    )
+
+    if "mc_params" in st.session_state:
+        st.markdown("### Monte Carlo Greek Surface (Beta)")
+        selected_greek = st.selectbox("Select Greek for Surface", ["delta", "vega", "theta", "rho"], key="mc_greek_surface")
+
+        p = st.session_state["mc_params"]
+        grid_strikes = np.linspace(p["K"] * 0.8, p["K"] * 1.2, 10)
+        grid_maturities = np.linspace(p["T"] * 0.5, p["T"] * 1.5, 10)
+        greek_surface = np.zeros((len(grid_maturities), len(grid_strikes)))
+
+        with st.spinner("Generating 3D Greek surface..."):
+            for i, t in enumerate(grid_maturities):
+                for j, k_ in enumerate(grid_strikes):
+                    try:
+                        greek_surface[i, j] = MonteCarloOption(
+                            p["S"], k_, t, p["r"], p["sigma"], p["option_type"],
+                            p["n_sim"], p["n_steps"], p["q"]
+                        ).greek(selected_greek)
+                    except:
+                        greek_surface[i, j] = np.nan
+
+        fig_surface = PlotUtils.plot_mc_greek_surface(grid_strikes, grid_maturities, greek_surface, selected_greek.capitalize())
+        st.plotly_chart(fig_surface, use_container_width=True)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

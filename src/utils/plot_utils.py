@@ -267,6 +267,40 @@ class PlotUtils:
         return fig
 
 
+
+    @staticmethod
+    def plot_mc_greek_comparison(strikes: np.ndarray, greeks_dict: dict, greek_name: str, title: str):
+
+        fig = go.Figure()
+        for method, values in greeks_dict.items():
+            fig.add_trace(go.Scatter(x=strikes, y=values, mode='lines+markers', name=method))
+
+        fig.update_layout(
+            title=title,
+            xaxis_title="Strike (K)",
+            yaxis_title=greek_name,
+            legend_title="Method",
+            height=500
+        )
+        return fig
+
+    @staticmethod
+    def plot_mc_greek_surface(strikes: np.ndarray, maturities: np.ndarray, greek_surface: np.ndarray, greek_name: str):
+        K_mesh, T_mesh = np.meshgrid(strikes, maturities, indexing='xy')
+        fig = go.Figure(data=[go.Surface(x=K_mesh, y=T_mesh, z=greek_surface)])
+        fig.update_layout(
+            title=f"{greek_name} Surface via Monte Carlo",
+            scene=dict(
+                xaxis_title="Strike (K)",
+                yaxis_title="Maturity (T)",
+                zaxis_title=greek_name
+            ),
+            height=600
+        )
+        return fig
+
+
+
     @staticmethod
     def plot_market_vol_surface(vol_surface_obj, method: str = "linear"):
         if vol_surface_obj.IV is None or len(vol_surface_obj.IV) == 0:
