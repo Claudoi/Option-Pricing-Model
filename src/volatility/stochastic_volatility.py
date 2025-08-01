@@ -5,6 +5,9 @@ from scipy.optimize import minimize
 
 
 class HestonModel:
+    """    
+    Heston model for option pricing using the characteristic function.
+    """
     def __init__(self, S0, K, T, r, kappa, theta, sigma, rho, v0, option_type="call"):
         self.S0 = S0
         self.K = K
@@ -18,6 +21,9 @@ class HestonModel:
         self.option_type = option_type.lower()
 
     def _char_func(self, phi, Pnum):
+        """
+        Computes the characteristic function for the Heston model.
+        """
         i = 1j
         u = 0.5 if Pnum == 1 else -0.5
         b = self.kappa - self.rho * self.sigma if Pnum == 1 else self.kappa
@@ -37,12 +43,20 @@ class HestonModel:
 
         return np.exp(C + D * self.v0 + i * phi * np.log(self.S0))
 
+
     def _integrand(self, phi, Pnum):
+        """ 
+        Computes the integrand for the Fourier transform.
+        """
         if phi == 0:
             return 0.0
         return np.real(np.exp(-1j * phi * np.log(self.K)) * self._char_func(phi, Pnum) / (1j * phi))
 
+
     def price(self):
+        """
+        Computes the option price using the characteristic function.
+        """
         integral1 = quad(lambda phi: self._integrand(phi, 1), 1e-5, 100, limit=100)[0]
         integral2 = quad(lambda phi: self._integrand(phi, 2), 1e-5, 100, limit=100)[0]
 
@@ -59,9 +73,11 @@ class HestonModel:
             raise ValueError("option_type must be 'call' or 'put'")
 
 
-
 def calibrate_heston(market_data, S0, r, option_type="call"):
     def objective(params):
+        """        
+        Objective function for Heston calibration.
+        """
         kappa, theta, sigma, rho, v0 = params
         error = 0.0
         for data in market_data:

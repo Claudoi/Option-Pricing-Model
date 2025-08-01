@@ -494,7 +494,7 @@ if selected == "Risk Analysis":
 if selected == "Volatility":
     st.markdown("## Volatility Modeling & Calibration")
 
-    vol_tab = st.tabs(["Volatility Surface", "SVI Smile", "SABR", "Local Volatility", "Heston Model", "Delta Hedging Simulator"])
+    vol_tab = st.tabs(["Volatility Surface", "SVI Smile", "SABR", "Local Volatility", "Heston Model"])
 
 
 

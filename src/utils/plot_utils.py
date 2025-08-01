@@ -61,9 +61,7 @@ class PlotUtils:
 
     @staticmethod
     def plot_binomial_price_vs_spot(K, T, r, sigma, N, option_type, q, BinomialOption):
-        """
-        Plot the Binomial option price vs spot price S for a given strike, time, rate, volatility, steps, and option type.
-        """
+
         S_range = np.linspace(50, 150, 60)
         prices = []
         for S in S_range:
@@ -85,20 +83,18 @@ class PlotUtils:
     @staticmethod
     def show_binomial_tree(S, K, T, r, sigma, N, option_type, q, BinomialClass):
         import graphviz
-        """
-        Visualiza el árbol binomial de precios usando Graphviz.
-        """
+
         option = BinomialClass(S, K, T, r, sigma, N, option_type, q)
         tree = option.get_tree()
         dot = graphviz.Digraph()
 
-        # Añade nodos
+        # Add nodes
         for i, level in enumerate(tree):
             for j, value in enumerate(level):
                 node_id = f"{i}_{j}"
                 dot.node(node_id, f"{value:.2f}")
 
-        # Añade conexiones
+        # Add edges
         for i in range(len(tree) - 1):
             for j in range(len(tree[i])):
                 dot.edge(f"{i}_{j}", f"{i+1}_{j}")

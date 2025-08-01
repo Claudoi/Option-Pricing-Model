@@ -6,11 +6,11 @@ import logging
 # Plotly for interactive charts
 import plotly.graph_objs as go
 
-# Configuración de logging
+# Logging setup
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-# Intentar importar arch_model (solo necesario si se usa GARCH)
+# Try to import arch_model (only needed if using GARCH)
 try:
     from arch import arch_model
 except ImportError:
@@ -22,14 +22,8 @@ class RollingVaR:
     Rolling Value at Risk (VaR) estimator using EWMA or GARCH models.
     """
 
-    def __init__(
-        self,
-        returns: np.ndarray,
-        method: str = "ewma",
-        lambda_: float = 0.94,
-        window: int = 100,
-        confidence_level: float = 0.95
-    ):
+    def __init__(self, returns: np.ndarray, method: str = "ewma", lambda_: float = 0.94, window: int = 100,
+        confidence_level: float = 0.95):
         self.returns = pd.Series(returns).dropna()
         self.method = method.lower()
         self.lambda_ = lambda_
@@ -42,6 +36,7 @@ class RollingVaR:
         if self.method == "garch" and arch_model is None:
             raise ImportError("⚠️ 'arch' package is required for GARCH model.")
 
+
     def calculate_var_series(self):
         """
         Compute the rolling VaR series based on selected method.
@@ -51,6 +46,7 @@ class RollingVaR:
             return self._calculate_ewma_var(z)
         elif self.method == "garch":
             return self._calculate_garch_var(z)
+
 
     def _calculate_ewma_var(self, z: float) -> np.ndarray:
         """
@@ -69,6 +65,7 @@ class RollingVaR:
             var = z * ewma_std
             var_series.append(var)
         return np.array(var_series)
+
 
     def _calculate_garch_var(self, z: float) -> float:
         """

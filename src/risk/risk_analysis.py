@@ -12,10 +12,11 @@ from src.utils.constants import (
 from src.utils.utils import validate_positive_inputs
 
 
-class PortfolioVaR:
 
+class PortfolioVaR:
     """
-    Parametric (Variance-Covariance) VaR under normality.
+    Portfolio Value at Risk (VaR) and Expected Shortfall (ES) using variance-covariance method.
+    Assumes returns are normally distributed.
     """
 
     def __init__(self, returns_df: pd.DataFrame, weights: np.ndarray, confidence_level: float = 0.95, holding_period: int = 1):
@@ -37,6 +38,7 @@ class PortfolioVaR:
               portfolio_std * np.sqrt(self.holding_period) * norm.ppf(1 - self.confidence_level)
         return var
     
+
     def calculate_es(self) -> float:
         from scipy.stats import norm
         portfolio_mean = np.dot(self.weights, self.returns_df.mean())
@@ -49,7 +51,6 @@ class PortfolioVaR:
 
 
 class HistoricalVaR:
-
     """
     Historical simulation-based VaR and Expected Shortfall (ES).
     """
@@ -72,7 +73,6 @@ class HistoricalVaR:
 
 
 class MonteCarloVaR:
-
     """
     Monte Carlo simulation-based VaR and Expected Shortfall (ES).
     """
@@ -111,6 +111,10 @@ class MonteCarloVaR:
 
 
 class StressTester:
+    """
+    Portfolio stress testing using shocks to asset prices.
+    Computes the mean and standard deviation of portfolio returns after applying shocks.
+    """
 
     def __init__(self, prices_df: pd.DataFrame, weights: np.ndarray):
         self.prices = prices_df

@@ -3,7 +3,12 @@ from scipy.stats import norm
 from src.models.pricing_black_scholes import BlackScholesOption
 
 
+
 class ImpliedVolatility:
+    """
+    Implied volatility calculations for options.
+    Provides methods to compute implied volatility using Newton-Raphson and bisection methods.
+    """
 
     @staticmethod
     def validate_positive_inputs(*args):
@@ -28,17 +33,8 @@ class ImpliedVolatility:
 
 
     @staticmethod
-    def implied_volatility_newton(
-        market_price,
-        S,
-        K,
-        T,
-        r,
-        option_type="call",
-        q=0.0,
-        tol=1e-6,
-        max_iter=100,
-    ):
+    def implied_volatility_newton(market_price, S, K, T, r, option_type="call", q=0.0,
+        tol=1e-6, max_iter=100):
         """
         Compute implied volatility using Newton-Raphson method.
         """
@@ -65,20 +61,10 @@ class ImpliedVolatility:
 
         raise RuntimeError("Implied volatility did not converge")
 
+
     @staticmethod
-    def implied_volatility_bisection(
-        market_price,
-        S,
-        K,
-        T,
-        r,
-        option_type="call",
-        q=0.0,
-        tol=1e-6,
-        max_iter=500,
-        sigma_low=1e-6,
-        sigma_high=5.0,
-    ):
+    def implied_volatility_bisection(market_price, S, K, T, r, option_type="call", q=0.0,
+        tol=1e-6, max_iter=500, sigma_low=1e-6, sigma_high=5.0):
         """
         Compute implied volatility using the bisection method.
         """
@@ -108,19 +94,10 @@ class ImpliedVolatility:
 
         raise RuntimeError("Implied volatility (bisection) did not converge")
 
+
     @staticmethod
-    def implied_volatility_vectorized(
-        market_prices,
-        S,
-        K,
-        T,
-        r,
-        option_type="call",
-        q=0.0,
-        method="newton",
-        tol=1e-6,
-        max_iter=100,
-    ):
+    def implied_volatility_vectorized(market_prices, S, K, T, r, option_type="call", q=0.0,
+        method="newton", tol=1e-6, max_iter=100):
         """
         Vectorized calculation of implied volatility for an array of market prices.
         """

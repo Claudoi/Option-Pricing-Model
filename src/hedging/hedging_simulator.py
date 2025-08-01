@@ -39,10 +39,10 @@ class DeltaHedgingSimulator:
         self.dt = T / N_steps
         self.time_grid = np.linspace(0, T, N_steps + 1)
 
+
     def _black_scholes_price(self, S, K, T, r, sigma, option_type):
         """
         Computes the price of a European option using the Black-Scholes formula.
-
         Returns:
             float: Option price.
         """
@@ -57,10 +57,10 @@ class DeltaHedgingSimulator:
         else:
             return K * np.exp(-r * T) * norm.cdf(-d2) - S * norm.cdf(-d1)
 
+
     def _delta_bs(self, S, K, T, r, sigma, option_type):
         """
         Computes the delta of a European option under Black-Scholes.
-
         Returns:
             float: Delta.
         """
@@ -74,7 +74,6 @@ class DeltaHedgingSimulator:
     def simulate(self):
         """
         Runs the Monte Carlo simulation of the delta hedging strategy.
-
         Returns:
             tuple: (pnl_paths, time_grid, pnl_over_time, hedging_errors)
         """
@@ -93,7 +92,7 @@ class DeltaHedgingSimulator:
                     self.sigma * np.sqrt(self.dt) * z
                 )
 
-            # ✅ Guardar el primer path simulado
+            # Save the first simulated path
             if i == 0:
                 self.last_S = S.copy()
 

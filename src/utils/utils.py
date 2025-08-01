@@ -46,7 +46,9 @@ def calculate_payoff(ST, K, option_type):
 
 
 def fetch_returns_from_yahoo(tickers: list, start: str, end: str) -> pd.DataFrame:
-
+    """
+        Fetches historical returns for given tickers from Yahoo Finance.
+    """
     data = yf.download(tickers, start=start, end=end, auto_adjust=False, progress=False)
 
     # Handle multiple tickers (multi-index)

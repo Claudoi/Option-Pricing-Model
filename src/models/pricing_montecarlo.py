@@ -10,7 +10,14 @@ from src.utils.utils import (
     calculate_payoff
 )
 
+
+
 class MonteCarloOption:
+    """
+    Monte Carlo simulation for option pricing.
+    Supports vanilla, Asian, lookback, and barrier options.
+    """
+
     def __init__(self, S, K, T, r, sigma, option_type="call", n_simulations=DEFAULT_SIMULATIONS, n_steps=DEFAULT_DISCRETIZATION, q=0.0):
         self.S = S
         self.K = K
@@ -23,11 +30,16 @@ class MonteCarloOption:
         self.q = q
         self._validate_inputs()
 
+
     def _validate_inputs(self):
         validate_option_type(self.option_type)
         validate_positive_inputs(self.S, self.K, self.T, self.sigma, self.n_simulations, self.n_steps)
 
+
     def _simulate_paths(self):
+        """
+        Simulates price paths for the underlying asset.
+        """
         dt = self.T / self.n_steps
         Z = np.random.normal(0, 1, size=(self.n_simulations, self.n_steps))
         paths = np.zeros_like(Z)
@@ -36,21 +48,33 @@ class MonteCarloOption:
             paths[:, t] = paths[:, t-1] * np.exp((self.r - 0.5 * self.sigma**2) * dt + self.sigma * np.sqrt(dt) * Z[:, t])
         return paths
 
+
     def price_asian(self):
+        """
+        Prices an Asian option using Monte Carlo simulation.
+        """
         paths = self._simulate_paths()
         avg_prices = paths.mean(axis=1)
         discount = np.exp(-self.r * self.T)
         payoffs = calculate_payoff(avg_prices, self.K, self.option_type)
         return discount * np.mean(payoffs)
 
+
     def price_asian_geometric(self):
+        """
+        Prices a geometric Asian option using Monte Carlo simulation.
+        """
         paths = self._simulate_paths()
         geo_avg = np.exp(np.mean(np.log(paths), axis=1))
         discount = np.exp(-self.r * self.T)
         payoffs = calculate_payoff(geo_avg, self.K, self.option_type)
         return discount * np.mean(payoffs)
 
+
     def price_digital_barrier(self, barrier, barrier_type="up-and-in", payout=1.0):
+        """
+        Prices a digital barrier option using Monte Carlo simulation.
+        """
         validate_barrier_type(barrier_type)
         paths = self._simulate_paths()
         ST = paths[:, -1]
@@ -67,7 +91,12 @@ class MonteCarloOption:
         final_payoff = payout * (barrier_crossed & intrinsic)
         return discount * np.mean(final_payoff)
 
+
     def price_lookback(self, strike_type="fixed"):
+        """
+        Prices a lookback option using Monte Carlo simulation.
+        Supports fixed and floating strike types.
+        """
         if strike_type not in STRIKE_TYPES:
             raise ValueError("strike_type must be either 'fixed' or 'floating'")
 
@@ -84,14 +113,22 @@ class MonteCarloOption:
 
         return discount * np.mean(payoffs)
 
+
     def price_vanilla(self):
+        """
+        Prices a vanilla option using Monte Carlo simulation.
+        """
         paths = self._simulate_paths()
         ST = paths[:, -1]
         discount = np.exp(-self.r * self.T)
         payoffs = calculate_payoff(ST, self.K, self.option_type)
         return discount * np.mean(payoffs)
 
+
     def barrier_knock_in_out_payoff_paths(self, barrier, barrier_type="up-and-in", payout=DEFAULT_PAYOUT):
+        """
+        Computes the payoff for barrier options based on the paths simulated.
+        """
         validate_option_type(self.option_type)
         validate_barrier_type(barrier_type)
         paths = self._simulate_paths()
@@ -110,7 +147,11 @@ class MonteCarloOption:
         final_payoff = payout * (payoffs & hit_barrier)
         return discount * np.mean(final_payoff)
     
+
     def price_american_lsm(self, poly_degree=2):
+        """
+        Prices an American option using the Longstaff-Schwartz method.
+        """
         dt = self.T / self.n_steps
         discount = np.exp(-self.r * dt)
         paths = self._simulate_paths()
@@ -145,6 +186,9 @@ class MonteCarloOption:
 
 
     def greek(self, greek, h=DEFAULT_H):
+        """
+        Computes the specified Greek for the option.
+        """
         if greek == "delta":
             up = MonteCarloOption(self.S + h, self.K, self.T, self.r, self.sigma, self.option_type, self.n_simulations, self.n_steps).price_vanilla()
             down = MonteCarloOption(self.S - h, self.K, self.T, self.r, self.sigma, self.option_type, self.n_simulations, self.n_steps).price_vanilla()
@@ -232,7 +276,6 @@ class MonteCarloOption:
 
         else:
             raise ValueError("Only 'delta' and 'vega' supported in greek_lrm().")
-
 
 
     def greek_all(self):

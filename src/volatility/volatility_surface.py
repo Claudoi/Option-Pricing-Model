@@ -4,8 +4,14 @@ import yfinance as yf
 from scipy.interpolate import griddata
 
 
+
 class VolatilitySurface:
     
+    """    
+    Class to fetch and interpolate volatility surface data from Yahoo Finance.
+    Supports multiple maturities and strikes.
+    """
+
     def __init__(self, ticker: str, n_expirations: int = 5):
         self.ticker = ticker.upper()
         self.n_expirations = n_expirations
@@ -17,9 +23,7 @@ class VolatilitySurface:
         self.grid_IV = None
 
 
-
     def fetch_data(self):
-
         """
         Fetches strike, maturity (in years), and implied volatilities from Yahoo Finance.
         Stores results as numpy arrays.
@@ -52,9 +56,7 @@ class VolatilitySurface:
         return self.K, self.T, self.IV
 
 
-
     def interpolate(self, resolution: int = 50, method: str = "linear"):
-
         """
         Interpolates the volatility surface onto a grid.
         Returns: meshgrid (K, T), interpolated IV values.

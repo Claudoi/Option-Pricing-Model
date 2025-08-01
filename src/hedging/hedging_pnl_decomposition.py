@@ -3,6 +3,7 @@ from typing import Dict
 from src.models.pricing_black_scholes import BlackScholesOption
 
 
+
 class HedgingPnLAttribution:
     """
     Decomposes the P&L of a delta hedging strategy into:
@@ -11,15 +12,8 @@ class HedgingPnLAttribution:
     - Residual P&L: due to discrete rehedging, approximation error, etc.
     """
 
-    def __init__(
-        self,
-        S: np.ndarray,
-        time_grid: np.ndarray,
-        K: float,
-        r: float,
-        sigma: float,
-        option_type: str = "call"
-    ):
+    def __init__(self, S: np.ndarray, time_grid: np.ndarray, K: float, r: float, sigma: float,
+        option_type: str = "call"):
         self.S = S
         self.time_grid = time_grid
         self.T = time_grid[-1]
@@ -33,17 +27,20 @@ class HedgingPnLAttribution:
             raise ValueError("option_type must be 'call' or 'put'")
 
 
-
     def decompose(self) -> Dict[str, np.ndarray]:
+        """        
+        Decomposes the P&L into delta, theta, and residual components.
+        Returns a dictionary with keys 'delta_pnl', 'theta_pnl', 'residual_pnl', 'total_pnl'.
+        """
         N = len(self.S) - 1
         delta_pnl = np.zeros(N)
         theta_pnl = np.zeros(N)
         approx_pnl = np.zeros(N)
 
-        # Descomposición paso a paso
+        # Iterate over each time step
         for t in range(N):
             T_remain = self.T - self.time_grid[t]
-            T_remain = max(T_remain, 1e-8)  # Para evitar T=0 en BS
+            T_remain = max(T_remain, 1e-8)  # Avoid division by zero
 
             opt = BlackScholesOption(
                 S=self.S[t],
@@ -61,23 +58,23 @@ class HedgingPnLAttribution:
             theta_pnl[t] = greeks["theta"] * dt
             approx_pnl[t] = delta_pnl[t] + theta_pnl[t]
 
-        # Valor inicial (precio teórico al inicio)
+        # Initial values for delta and cash account
         opt_start = BlackScholesOption(S=self.S[0], K=self.K, T=self.T, r=self.r, sigma=self.sigma, option_type=self.option_type)
         price_0 = opt_start.price()
         delta_0 = opt_start.greeks()["delta"]
         cash_0 = price_0 - delta_0 * self.S[0]
 
-        # Payoff real al vencimiento
+        # Final value of the underlying asset
         ST = self.S[-1]
         payoff = max(ST - self.K, 0) if self.option_type == "call" else max(self.K - ST, 0)
 
-        # Valor final de cartera si se mantiene delta constante desde t=0
+        # Final portfolio value
         portfolio_T = delta_0 * ST + cash_0 * np.exp(self.r * self.T)
 
-        # PnL realizado = valor final - payoff
+        # PnL realized at maturity
         realized_pnl = portfolio_T - payoff
 
-        # Residual = diferencia entre PnL real y aproximado
+        # Calculate residual PnL
         residual_pnl = np.full(N, realized_pnl - np.sum(approx_pnl))
 
         return {

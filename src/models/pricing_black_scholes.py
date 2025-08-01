@@ -4,7 +4,13 @@ from src.utils.constants import ONE_OVER_100, ONE_OVER_365
 from src.utils.utils import validate_option_type, validate_positive_inputs
 
 
+
 class BlackScholesOption:
+    """
+    Black-Scholes option pricing model.
+    Computes the price and greeks for European call and put options.
+    """
+    
     def __init__(self, S, K, T, r, sigma, option_type="call", q=0.0):
         self.S = S
         self.K = K
@@ -16,24 +22,25 @@ class BlackScholesOption:
         self._validate_inputs()
 
 
-
     def _validate_inputs(self):
         validate_option_type(self.option_type)
         validate_positive_inputs(self.S, self.K, self.T, self.sigma)
-
 
 
     def _d1(self):
         return (np.log(self.S / self.K) + (self.r - self.q + 0.5 * self.sigma ** 2) * self.T) / (self.sigma * np.sqrt(self.T))
 
 
-
     def _d2(self):
+
         return self._d1() - self.sigma * np.sqrt(self.T)
 
 
-
     def price(self):
+        """
+        Computes the Black-Scholes option price.
+        Returns the price of the option.
+        """
         d1 = self._d1()
         d2 = self._d2()
         discounted_S = self.S * np.exp(-self.q * self.T)
@@ -43,8 +50,11 @@ class BlackScholesOption:
             return self.K * np.exp(-self.r * self.T) * norm.cdf(-d2) - discounted_S * norm.cdf(-d1)
 
 
-
     def greeks(self):
+        """        
+        Computes the option greeks: delta, gamma, vega, theta, rho.
+        Returns a dictionary with the computed values.
+        """
         d1 = self._d1()
         d2 = self._d2()
         sqrt_T = np.sqrt(self.T)

@@ -2,6 +2,7 @@ import numpy as np
 from src.models.pricing_black_scholes import BlackScholesOption
 
 
+
 class HestonDeltaHedgingSimulator:
     """
     Simulates a discrete-time delta hedging strategy using the Heston model.
@@ -30,7 +31,6 @@ class HestonDeltaHedgingSimulator:
         self.time_grid = np.linspace(0, T, N_steps + 1)
 
 
-
     def _black_scholes_price(self, S, K, T, r, sigma, option_type):
         sigma = max(sigma, 1e-6)  # Ensure sigma is always positive
         T = max(T, 1e-6)          # Ensure T is always positive
@@ -38,17 +38,21 @@ class HestonDeltaHedgingSimulator:
         return bs.price()
 
 
-
     def _finite_diff_delta(self, S, v, T_remain):
-        """Approximate delta using central finite differences under BS with local vol sqrt(v)"""
+        """
+        Approximate delta using central finite differences under BS with local vol sqrt(v)
+        """
         sigma = max(np.sqrt(v), 1e-6)
         price_up = self._black_scholes_price(S + self.bump, self.K, T_remain, self.r, sigma, self.option_type)
         price_down = self._black_scholes_price(S - self.bump, self.K, T_remain, self.r, sigma, self.option_type)
         return (price_up - price_down) / (2 * self.bump)
 
 
-
     def simulate(self):
+        """
+        Simulates the delta hedging strategy over multiple paths.
+        Returns the PnL paths, time grid, PnL over time, and hedging errors.
+        """
         pnl_paths = []
         pnl_over_time = []
         hedging_errors = []

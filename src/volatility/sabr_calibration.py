@@ -1,10 +1,12 @@
 import numpy as np
 from scipy.optimize import minimize
 
+
+
 class SABRCalibrator:
     """
     SABR volatility smile calibrator. 
-    Usa la aproximación de Hagan para volatilidad implícita.
+    Uses Hagan's approximation for implied volatility.
     """
     def __init__(self, F, K, T, market_vols, beta_fixed=0.5):
         """
@@ -46,6 +48,9 @@ class SABRCalibrator:
 
     @staticmethod
     def _objective(params, F, K, T, market_vols):
+        """
+        Objective function for SABR calibration.
+        """
         alpha, beta, rho, nu = params
         model_vols = [SABRCalibrator.sabr_volatility(F, k, T, alpha, beta, rho, nu) for k in K]
         return np.mean((np.array(model_vols) - market_vols) ** 2)
@@ -53,8 +58,8 @@ class SABRCalibrator:
 
     def calibrate(self):
         """
-        Calibra los parámetros del modelo SABR.
-        Devuelve: params (alpha, beta, rho, nu)
+        Calibrates SABR parameters using market volatilities.
+        Returns the calibrated parameters: alpha, beta, rho, nu.
         """
         x0 = [0.2, self.beta_fixed, 0.0, 0.5]  # alpha, beta, rho, nu
         bounds = [
@@ -76,7 +81,7 @@ class SABRCalibrator:
 
     def model_vols(self):
         """
-        Devuelve las volatilidades ajustadas con los parámetros calibrados.
+        Returns the model implied volatilities for the calibrated SABR parameters.
         """
         if self.params is None:
             raise RuntimeError("Call calibrate() first.")
@@ -89,6 +94,10 @@ class SABRCalibrator:
 
     @staticmethod
     def calibrate_sabr_surface(strike_matrix, iv_matrix, maturities, forward_price, beta=0.5):
+        """
+        Calibrates a SABR volatility surface for multiple maturities and strikes.
+        Returns a 2D array of fitted volatilities and the SABR parameters.
+        """
         vol_surface = []
         sabr_params = []
 

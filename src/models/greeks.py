@@ -3,7 +3,14 @@ from scipy.stats import norm
 from src.utils.constants import OPTION_TYPES, ERROR_OPTION_TYPE, VEGA_SCALE, RHO_SCALE, THETA_SCALE
 from src.utils.utils import validate_option_type, validate_positive_inputs
 
+
+
 class BlackScholesGreeks:
+    """
+    Black-Scholes model for calculating option greeks.
+    Provides methods to compute delta, gamma, vega, theta, and rho for European options.
+    """
+
     def __init__(self, S, K, T, r, sigma, option_type='call'):
         self.S = S
         self.K = K

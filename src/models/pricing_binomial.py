@@ -6,7 +6,12 @@ from src.utils.utils import (
 )
 
 
+
 class BinomialOption:
+    """
+    Binomial option pricing model.
+    Computes the price for European and American options.
+    """
 
     def __init__(self, S, K, T, r, sigma, N, option_type="call", q=0.0):
         self.S = S
@@ -26,6 +31,10 @@ class BinomialOption:
 
 
     def price_european(self, return_tree=False):
+        """
+        Computes the price of a European option using a binomial tree.
+        Returns the option price and optionally the asset price tree.
+        """
         dt = self.T / self.N
         u = np.exp(self.sigma * np.sqrt(dt))
         d = 1 / u
@@ -45,6 +54,10 @@ class BinomialOption:
 
 
     def price_american(self, return_tree=False):
+        """        
+        Computes the price of an American option using a binomial tree.
+        Returns the option price and optionally the asset price tree.
+        """
         dt = self.T / self.N
         u = np.exp(self.sigma * np.sqrt(dt))
         d = 1 / u
@@ -95,8 +108,8 @@ class BinomialOption:
 
     def get_sensitivities_tree(self, american=False):
         """
-        Devuelve el árbol binomial con spot, valor de la opción, Delta y Gamma en cada nodo.
-        Solo recomendable para N pequeño.
+        Computes the binomial tree with local delta and gamma sensitivities.
+        Returns a tree structure with each node containing S, V, Delta, and Gamma.
         """
         
         N = self.N

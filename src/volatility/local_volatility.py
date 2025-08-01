@@ -1,6 +1,8 @@
 import numpy as np
 from scipy.interpolate import CloughTocher2DInterpolator
 
+
+
 class LocalVolatilitySurface:
     """
     Compute local volatility surface using Dupire's formula
@@ -13,33 +15,42 @@ class LocalVolatilitySurface:
         self.iv_surface = iv_surface
         self.F = F
 
-        # Mallado (K, T) para la superficie de volatilidad implícita
+        # Create a 2D interpolator for the implied volatility surface
         K_mesh, T_mesh = np.meshgrid(strikes, maturities, indexing="xy")
         points = np.column_stack([K_mesh.flatten(), T_mesh.flatten()])
         values = iv_surface.flatten()
 
-        # Interpolador robusto con extrapolación suave
+        # Interpol using Clough-Tocher method
         self.iv_interpolator = CloughTocher2DInterpolator(points, values)
 
+
     def _clip_inputs(self, K, T):
+        """        
+        Clips K and T to the valid range defined by the strikes and maturities.
+        """
         K_clipped = np.clip(K, np.min(self.strikes), np.max(self.strikes))
         T_clipped = np.clip(T, np.min(self.maturities), np.max(self.maturities))
         return K_clipped, T_clipped
 
+
     def partial_derivatives(self, K, T, h=1e-2):
+        """
+        Computes partial derivatives of implied volatility with respect to K and T.
+        Uses finite differences for numerical approximation.
+        """
         K, T = self._clip_inputs(K, T)
 
         sigma = self.iv_interpolator(K, T)
         if sigma is None or sigma <= 0 or np.isnan(sigma):
             return np.nan, np.nan
 
-        # Derivadas centradas
+        # Derivatives using finite differences
         sigma_T_plus = self.iv_interpolator(K, T + h)
         sigma_T_minus = self.iv_interpolator(K, T - h)
         sigma_K_plus = self.iv_interpolator(K + h, T)
         sigma_K_minus = self.iv_interpolator(K - h, T)
 
-        # Evitar propagación de NaNs
+        # Verify that no NaN values are present
         if np.any(np.isnan([sigma_T_plus, sigma_T_minus, sigma_K_plus, sigma_K_minus])):
             return np.nan, np.nan
 
@@ -49,7 +60,11 @@ class LocalVolatilitySurface:
 
         return d_sigma_dT, d2_sigma_dK2
 
+
     def dupire_local_vol(self, K, T):
+        """
+        Computes local volatility using Dupire's formula.
+        """
         K, T = self._clip_inputs(K, T)
 
         sigma = self.iv_interpolator(K, T)
@@ -61,7 +76,7 @@ class LocalVolatilitySurface:
             return np.nan
 
         try:
-            # Fórmula clásica revisada de Dupire
+            # Classic Dupire's formula for local volatility
             numerator = sigma**2 + 2 * T * sigma * d_sigma_dT + T * sigma**2 * d2_sigma_dK2
             denominator = (1 + K * d2_sigma_dK2)**2
             local_vol_squared = numerator / denominator if denominator != 0 else np.nan
@@ -70,7 +85,12 @@ class LocalVolatilitySurface:
         except Exception:
             return np.nan
 
+
     def generate_surface(self):
+        """
+        Generates a grid of local volatility values for the given strikes and maturities.
+        Returns a 2D numpy array where rows correspond to maturities and columns to strikes.
+        """
         local_vol_grid = np.full((len(self.maturities), len(self.strikes)), np.nan)
         for i, T in enumerate(self.maturities):
             for j, K in enumerate(self.strikes):
