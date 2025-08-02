@@ -20,13 +20,21 @@ This project implements a **modular and interactive platform** for pricing Europ
   - Rolling VaR with:
     - EWMA (Exponentially Weighted Moving Average)
     - GARCH(1,1)
-- 📉 Stress Testing: custom loss estimation under defined shock scenarios
 - 📐 Risk Ratios Calculation:
   - Sharpe Ratio, Sortino Ratio, Calmar Ratio, Omega Ratio
   - Information Ratio, Skewness, Kurtosis
   - Max Drawdown, Value at Risk, Expected Shortfall
+  - Custom scenario-based stress testing
   - 📊 Includes dynamic bar chart visualization of all ratios
-- 🔗 Automatic price data download from Yahoo Finance (no manual CSV uploads)
+- 📉 Volatility Surface Calibration
+  - SVI (Stochastic Volatility Inspired) model
+  - SABR (Stochastic Alpha Beta Rho) model
+  - Dupire Local Volatility (via PDE)
+  - Heston Stochastic Volatility Model
+- 🧭 Delta Hedging Simulator
+  - Interactive simulator for delta hedging under Black-Scholes and Heston models
+  - PnL decomposition: Delta, Theta, Residual
+- 🔗 Automatic price data download from Yahoo Finance and also Manual CSV 
 - 📓 Jupyter notebooks for step-by-step exploration of all pricing and risk models
 - 🧪 Unit tests for core pricing and risk analytics functionality
 - 🧱 Modular architecture, designed for reusability and expansion
@@ -38,37 +46,65 @@ This project implements a **modular and interactive platform** for pricing Europ
 ```
 option-pricing-model/
 │
-├── notebooks/ # Step-by-step exploration of models
-│ ├── 01_black_scholes.ipynb
-│ ├── 02_binomial_american.ipynb
-│ ├── 03_monte_carlo_asian.ipynb
-│ ├── ... (others: barrier, lookback, greeks, interface)
+├── data/
+│   ├── options_sample.csv
+│   └── tempus_options_comparison.csv
 │
-├── src/ # Core pricing logic
-│ ├── pricing_black_scholes.py
-│ ├── pricing_binomial.py
-│ ├── pricing_montecarlo.py
-│ ├── greeks.py
-│ ├── constants.py
-│ ├── risk_analysis.py
-│ ├── risk_ratios.py
-│ └── utils.py
+├── notebooks/
+│   ├── 01_black_scholes.ipynb
+│   ├── 02_binomial_american.ipynb
+│   ├── 03_monte_carlo_asian.ipynb
+│   ├── 04_digital_barrier.ipynb
+│   ├── 05_lookback_options.ipynb
+│   ├── 06_greeks_analysis.ipynb
+│   ├── 07_visualizations.ipynb
+│   └── 08_interface_streamlit.ipynb
 │
-├── tests/ # Unit tests
-│ └── greeks_tests.py
-│ └── pricing_tests.py
+├── src/
+│   ├── hedging/
+│   │   ├── hedging_simulator.py
+│   │   ├── heston_hedging_simulator.py
+│   │   └── hedging_pnl_decomposition.py
+│   │
+│   ├── models/
+│   │   ├── pricing_black_scholes.py
+│   │   ├── pricing_binomial.py
+│   │   ├── pricing_montecarlo.py
+│   │   ├── greeks.py
+│   │   └── implied_volatility.py
+│   │
+│   ├── risk/
+│   │   ├── risk_analysis.py
+│   │   ├── risk_ratios.py
+│   │   └── risk_rolling.py
+│   │
+│   ├── utils/
+│   │   ├── constants.py
+│   │   ├── utils.py
+│   │   └── plot_utils.py
+│   │
+│   └── volatility/
+│       ├── volatility_surface.py
+│       ├── svi_calibration.py
+│       ├── sabr_calibration.py
+│       ├── local_volatility.py
+│       └── stochastic_volatility.py
 │
-├── webapp / # Streamlit web app
-├── app.py 
+├── tests/
+│   ├── greeks_tests.ipynb
+│   └── pricing_tests.ipynb
 │
-├── requirements.txt # Dependencies
-├── data/ # Optional data files
-│ └── options_sample.csv
+├── webapp/
+│   └── app.py
+│
+├── requirements.txt
+├── LICENSE
 └── README.md
+
 ```
 
 
-## Installation
+## ⚙️ Installation
 
 Clone the repository and install dependencies:
 
@@ -87,7 +123,7 @@ pip install -r requirements.txt
 ```
 
 
-## Usage
+## 💻 Usage
 
 ### 1 - Run the app interactively
 
@@ -116,19 +152,16 @@ pytest tests/
 ```
 
 
-## 🧠 Future Ideas
-
-- Volatility Surface Calibration using market option data (e.g., SVI or SABR models)
-- Local and Stochastic Volatility Models such as Heston or Dupire
-- Delta Hedging Simulator to evaluate dynamic hedging performance
-- Portfolio Optimization with risk-adjusted objective functions (e.g., CVaR, Sharpe)
-- Intraday Risk Monitoring with real-time rolling VaR and Expected Shortfall
+## 🧠 Next Module: Machine Learning for Volatility Forecasting
+- Build deep learning models (MLP, LSTM) to forecast implied volatility surfaces
+- Train on historical option prices, strike/maturity grids, market conditions
+- Evaluate forecast error and hedging performance
 
 
-## License
+## 📄 License
 
 MIT License
 
 
-## Author
+## 👨‍💻 Author
 Developed by Claudio Martel
