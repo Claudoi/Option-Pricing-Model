@@ -2,6 +2,8 @@
 
 This project implements a **modular and interactive platform** for pricing European, American, and exotic options and performing advanced portfolio risk analysis. Designed for **educational use, quant research, and professional prototyping**, it includes a Streamlit web app, reusable pricing/risk modules, and detailed notebooks.
 
+🚀 **Live App**: [Launch on Streamlit](https://options-pricing-models.streamlit.app/)
+
 
 ## Features
 

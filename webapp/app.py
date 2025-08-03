@@ -212,9 +212,9 @@ if selected == "Binomial":
                 st.markdown("#### Binomial Tree Visualization")
                 PlotUtils.show_binomial_tree(S, K, T, r, sigma, N, option_type, q, BinomialOption)
 
-                # Mostrar SIEMPRE el árbol de sensibilidades
+                # Show sensitivities tree
                 try:
-                    st.markdown("#### Sensitividades Locales (Delta/Gamma por nodo)")
+                    st.markdown("#### Local Sensitivities (Delta/Gamma per node)")
                     tree = bin_opt.get_sensitivities_tree(american=(style == "American"))
                     dot = PlotUtils.graphviz_binomial_sensitivities(tree)
                     st.graphviz_chart(dot.source)   # <---- ¡Esto es lo importante!
@@ -502,11 +502,11 @@ if selected == "Volatility":
     with vol_tab[0]:
         st.subheader("Volatility Surface (Market Data Interpolation)")
         ticker = st.text_input("Ticker", "AAPL", key="vs_ticker")
-        st.write("Carga y visualiza la superficie de volatilidad usando precios de opciones reales.")
+        st.write("Enter a valid ticker symbol to load the volatility surface data.")
         if st.button("Load Vol Surface", key="load_vol_surface_btn"):
             try:
                 vol_surface = VolatilitySurface(ticker)
-                vol_surface.fetch_data()  # <- IMPORTANTE: cargar datos antes de plot
+                vol_surface.fetch_data()  # <- Important to fetch data before plotting
                 fig = PlotUtils.plot_market_vol_surface(vol_surface)
                 st.plotly_chart(fig, use_container_width=True)
             except Exception as e:
@@ -664,7 +664,7 @@ if selected == "Volatility":
     with vol_tab[3]:
         st.subheader("📉 Local Volatility Surface (Dupire)")
 
-        # Inputs del usuario
+        # Inputs from user
         strikes_input = st.text_area("Strikes (comma separated)", "80,90,100,110,120", key="lv_strikes")
         maturities_input = st.text_area("Maturities (comma separated, years)", "0.25,0.5,1.0", key="lv_maturities")
         F = st.number_input("Forward Price (F)", value=100.0, key="lv_forward")
@@ -674,31 +674,31 @@ if selected == "Volatility":
             try:
                 import pandas as pd
 
-                # Caso 1: El usuario sube un CSV ⇒ derivamos las dimensiones automáticamente
+                # Case 1: CSV uploaded ⇒ use uploaded data
                 if iv_grid_upload is not None:
                     iv_grid = pd.read_csv(iv_grid_upload, header=None).values
                     m, k = iv_grid.shape
 
-                    # Creamos strikes y maturities uniformemente distribuidos (puedes personalizar esto)
+                    # Generate strikes and maturities automatically if not provided
                     strikes_arr = np.linspace(80, 120, k)
                     maturities_arr = np.linspace(0.25, 1.0, m)
 
-                    st.success(f"✅ CSV cargado con shape ({m}, {k}). Generados {k} strikes y {m} maturities automáticamente.")
+                    st.success(f"✅ CSV uploaded with shape ({m}, {k}). Generated {k} strikes and {m} maturities automatically.")
 
-                # Caso 2: No se sube CSV ⇒ usar inputs manuales
+                # Case 2: No CSV uploaded ⇒ generate synthetic data
                 else:
                     strikes_arr = np.array([float(x.strip()) for x in strikes_input.split(",")])
                     maturities_arr = np.array([float(x.strip()) for x in maturities_input.split(",")])
                     m, k = len(maturities_arr), len(strikes_arr)
 
-                    st.info("ℹ️ No se subió CSV. Generando superficie IV sintética suave.")
+                    st.info("ℹ️ No CSV uploaded. Generating synthetic IV surface.")
                     iv_grid = np.array([
                         [0.20 + 0.02 * np.sin((K - 100) / 10) * np.cos(T * np.pi)
                         for K in strikes_arr]
                         for T in maturities_arr
                     ])
 
-                # Construcción del objeto y cálculo de superficie local
+                # Construct Local Volatility Surface
                 lv_surface = LocalVolatilitySurface(strikes_arr, maturities_arr, iv_grid, F=F)
                 local_vol_grid = lv_surface.generate_surface()
 
@@ -708,7 +708,7 @@ if selected == "Volatility":
                     st.plotly_chart(fig, use_container_width=True)
 
             except Exception as e:
-                st.error(f"❌ Error al calcular la superficie de volatilidad local: {e}")
+                st.error(f"❌ Failed to generate local volatility surface: {e}")
 
 
 
@@ -719,7 +719,7 @@ if selected == "Volatility":
 
         st.markdown("Simulate European option prices under the **Heston stochastic volatility model**.")
 
-        # --- Formulario de parámetros ---
+        # --- Parameter Form ---
         with st.form("heston_form"):
             col1, col2 = st.columns(2)
 
@@ -738,7 +738,7 @@ if selected == "Volatility":
 
             submitted = st.form_submit_button("Simulate Heston")
 
-        # --- Gráfico de precio vs strike ---
+        # --- Price vs Strike Chart ---
         if submitted:
             try:
                 fig = PlotUtils.plot_heston_price_vs_strike(
@@ -757,7 +757,7 @@ if selected == "Volatility":
             except Exception as e:
                 st.error(f"❌ Simulation failed: {str(e)}")
 
-        # --- Calibración del modelo con datos reales ---
+        # --- Calibration with Real Data ---
         st.markdown("---")
         st.subheader("Heston Calibration: Fit to Market Data")
 
@@ -771,16 +771,16 @@ if selected == "Volatility":
                 if not required_cols.issubset(df.columns):
                     st.error("❌ CSV must contain columns: 'K', 'T', 'price'")
                 else:
-                    # Convertir datos a formato de lista de dicts
+                    # Convert data to list of dicts
                     market_data = df[["K", "T", "price"]].to_dict("records")
 
-                    # Calibrar parámetros
+                    # Calibrate parameters
                     with st.spinner("⏳ Calibrating Heston model..."):
                         calibrated_params = calibrate_heston(market_data, S0=S0, r=r, option_type=option_type)
 
                     st.success(f"✅ Calibration completed: κ={calibrated_params[0]:.3f}, θ={calibrated_params[1]:.3f}, σ={calibrated_params[2]:.3f}, ρ={calibrated_params[3]:.3f}, v₀={calibrated_params[4]:.3f}")
 
-                    # Mostrar gráfico de comparación
+                    # Show comparison chart
                     fig_fit = PlotUtils.plot_heston_calibration_fit(market_data, S0, r, calibrated_params, option_type=option_type)
                     st.plotly_chart(fig_fit, use_container_width=True)
 
