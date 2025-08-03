@@ -445,11 +445,11 @@ class PlotUtils:
         st.markdown(f"- ✅ **Valores válidos:** {num_valid} / {num_total} ({100 * num_valid / num_total:.1f}%)")
 
         if np.isnan(local_vol_grid).all():
-            st.error("⚠️ La superficie de volatilidad local es completamente NaN. Revisa los datos de IV o usa un grid más denso.")
+            st.error("⚠️ Volatility surface is completely NaN.")
             return None
 
         if num_valid < 0.3 * num_total:
-            st.warning("⚠️ Menos del 30% de la superficie contiene valores válidos. El gráfico puede verse incompleto.")
+            st.warning("⚠️ Less than 30% of the surface contains valid values. The chart may appear incomplete.")
 
         fig = go.Figure(data=[
             go.Surface(
@@ -488,7 +488,7 @@ class PlotUtils:
                 price = model.price()
                 prices.append(price)
             except Exception as e:
-                prices.append(np.nan)  # En caso de error, mejor NaN que romper el gráfico
+                prices.append(np.nan)  # In case of error, better NaN than break the chart
 
         fig = go.Figure()
         fig.add_trace(go.Scatter(
