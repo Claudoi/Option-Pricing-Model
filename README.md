@@ -158,7 +158,7 @@ pytest tests/
 ```
 
 
-## 🧠 Next Module: Machine Learning for Volatility Forecasting
+## 🧠 Next Module Idea: Machine Learning for Volatility Forecasting
 - Build deep learning models (MLP, LSTM) to forecast implied volatility surfaces
 - Train on historical option prices, strike/maturity grids, market conditions
 - Evaluate forecast error and hedging performance
