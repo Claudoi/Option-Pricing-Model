@@ -1,5 +1,11 @@
 # Option Pricing Model
 
+[![Python](https://img.shields.io/badge/Python-3.8+-blue?logo=python&logoColor=white)](https://www.python.org/)
+[![License](https://img.shields.io/badge/License-MIT-green?logo=Open%20Source%20Initiative&logoColor=white)](https://opensource.org/licenses/MIT)
+[![Last Commit](https://img.shields.io/badge/Last_Commit-Recently-brightgreen?logo=git&logoColor=white)](https://github.com/Claudoi/option-pricing-model/commits/main)
+[![Streamlit](https://img.shields.io/badge/Open%20in%20Streamlit-App-red?logo=streamlit&logoColor=white)](https://options-pricing-models.streamlit.app/)
+
+
 This project implements a **modular and interactive platform** for pricing European, American, and exotic options and performing advanced portfolio risk analysis. Designed for **educational use, quant research, and professional prototyping**, it includes a Streamlit web app, reusable pricing/risk modules, and detailed notebooks.
 
 🚀 **Live App**: [options-pricing-models.streamlit.app](https://options-pricing-models.streamlit.app/)
