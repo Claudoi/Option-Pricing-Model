@@ -22,26 +22,33 @@ st.set_page_config(
 
 # --- Global Styles ---
 st.markdown("""
-    <style>
-    html, body, [class*="css"]  {
-        font-family: 'Inter', sans-serif;
-        background-color: #121212;
-        color: #F5F5F5;
-    }
-    .block-container {
-        padding-top: 2rem;
-        padding-bottom: 2rem;
-    }
-    .stButton > button {
-        background-color: #5E60CE;
-        color: white;
-        border-radius: 8px;
-        padding: 0.5rem 1.5rem;
-    }
-    .stSelectbox > div > div {
-        color: black !important;
-    }
-    </style>
+<style>
+/* Select (dark) */
+.stSelectbox > div { 
+  background:#1E1E1E; 
+  border:1px solid #2A2A2A; 
+  border-radius:10px;
+}
+.stSelectbox [data-baseweb="select"] * { 
+  color:#F5F5F5 !important;        /* texto del valor */
+}
+.stSelectbox [data-baseweb="select"] svg { 
+  fill:#F5F5F5 !important;         /* caret icon */
+}
+/* placeholder (cuando no hay valor) */
+.stSelectbox [data-baseweb="select"] [aria-hidden="true"]{
+  color:#9CA3AF !important;
+}
+/* menú desplegable */
+[data-baseweb="popover"]{
+  background:#1E1E1E; 
+  border:1px solid #2A2A2A; 
+  border-radius:10px;
+}
+[data-baseweb="popover"] * { 
+  color:#F5F5F5 !important; 
+}
+</style>
 """, unsafe_allow_html=True)
 
 # --- App Header ---

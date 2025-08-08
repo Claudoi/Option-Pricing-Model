@@ -8,7 +8,7 @@ from src.hedging.heston_hedging_simulator import HestonDeltaHedgingSimulator
 
 
 def render_hedging_ui():
-    st.markdown("## 🔐 Hedging Strategies")
+    st.markdown("## Hedging Strategies")
     tabs = st.tabs(["Delta Hedging", "Heston Delta Hedging"])
 
     render_delta_hedging_tab(tabs[0])

@@ -8,7 +8,7 @@ from src.utils.plot_utils import PlotUtils
 
 def black_scholes_ui():
     # ------- SECTION HEADER -------
-    st.markdown("### 📈 Black-Scholes Option Pricing")
+    st.markdown("## Black-Scholes Option Pricing")
     st.markdown('<div class="small-muted">Analytical pricing • Greeks • IV</div>', unsafe_allow_html=True)
 
     # ------- INPUT FORM INSIDE A “CARD” -------

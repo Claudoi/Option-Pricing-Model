@@ -4,7 +4,7 @@ from src.utils.plot_utils import PlotUtils
 
 
 def binomial_ui():
-    st.markdown("### 🌲 Binomial Option Pricing")
+    st.markdown("## Binomial Option Pricing")
 
     with st.form("binomial_form"):
         st.markdown("#### Option Parameters")

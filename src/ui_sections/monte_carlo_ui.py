@@ -8,7 +8,7 @@ from src.utils.plot_utils import PlotUtils
 
 def monte_carlo_ui():
     # ------- SECTION HEADER -------
-    st.markdown("### 🎲 Monte Carlo Option Pricing")
+    st.markdown("## Monte Carlo Option Pricing")
     st.markdown('<div class="small-muted">Simulation-based pricing • Exotic payoffs • MC Greeks</div>', unsafe_allow_html=True)
 
     # ------- INPUT FORM INSIDE A “CARD” -------
