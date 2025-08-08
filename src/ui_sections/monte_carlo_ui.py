@@ -205,7 +205,7 @@ def monte_carlo_ui():
     st.markdown('</div>', unsafe_allow_html=True)
 
     # ------- DELTA METHODS COMPARISON -------
-    st.markdown('<div class="card" style="padding:30rem;">', unsafe_allow_html=True)
+    st.markdown('<div class="card" style="padding:1rem;">', unsafe_allow_html=True)
     st.markdown("#### 🔍 Delta Estimation Methods Comparison")
     try:
         dc = st.session_state["mc_delta_comparison"]

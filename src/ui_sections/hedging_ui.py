@@ -63,6 +63,7 @@ def render_delta_hedging_tab(tab):
 
 
 
+
 def render_heston_hedging_tab(tab):
     with tab:
         st.subheader("Heston Delta Hedging Simulator")
@@ -79,22 +80,73 @@ def render_heston_hedging_tab(tab):
                 v0 = st.number_input("Initial Variance (v₀)", 0.04, key="heston_v0")
                 kappa = st.number_input("Mean Reversion Speed (κ)", 2.0, key="heston_kappa")
                 theta = st.number_input("Long-Term Variance (θ)", 0.04, key="heston_theta")
-                sigma_v = st.number_input("Vol Volatility (σᵥ)", 0.3, key="heston_sigma_v")
-                rho = st.number_input("Correlation (ρ)", -0.7, key="heston_rho")
-            steps = st.slider("Hedge Steps", 10, 365, 50, key="heston_steps")
-            n_paths = st.slider("Simulated Paths", 10, 1000, 100, 10, key="heston_paths")
+                sigma_v = st.number_input("Vol Volatility (σᵥ)", 0.30, key="heston_sigma_v")
+                rho = st.number_input("Correlation (ρ)", -0.70, key="heston_rho")
+
+            option_type = st.selectbox("Option Type", ["call", "put"], key="heston_option_type")
+            N_steps = st.slider("Hedge Steps", 10, 365, 50, key="heston_steps")
+            N_paths = st.slider("Simulated Paths", 10, 1000, 100, 10, key="heston_paths")
+
             submitted = st.form_submit_button("Run Heston Delta Hedging Simulation")
 
-        if submitted:
-            try:
-                simulator = HestonDeltaHedgingSimulator(S0, K, T, r, v0, kappa, theta, sigma_v, rho, steps, n_paths)
+        if not submitted:
+            return
+
+        try:
+            simulator = HestonDeltaHedgingSimulator(
+                S0=float(S0), K=float(K), T=float(T), r=float(r),
+                v0=float(v0), kappa=float(kappa), theta=float(theta),
+                sigma_v=float(sigma_v), rho=float(np.clip(rho, -0.9999, 0.9999)),
+                option_type=option_type,
+                N_steps=int(N_steps), N_paths=int(N_paths),
+                hedge_freq=1, bump=1e-4
+            )
+
+            pnl_paths, time_grid, pnl_over_time, hedging_errors = simulator.simulate()
+
+            st.plotly_chart(
+                PlotUtils.plot_hedging_pnl(time_grid, np.mean(pnl_over_time, axis=0), "📈 Heston Delta Hedging P&L"),
+                use_container_width=True
+            )
+            st.plotly_chart(
+                PlotUtils.plot_hedging_pnl_histogram(pnl_paths, "📊 Final P&L Distribution (Heston)"),
+                use_container_width=True
+            )
+            st.plotly_chart(
+                PlotUtils.plot_hedging_error_over_time(time_grid, np.mean(np.abs(hedging_errors), axis=0), "📉 Hedging Error (Heston)"),
+                use_container_width=True
+            )
+
+            st.success(f"✅ Heston simulation complete: Mean P&L = {np.mean(pnl_paths):.4f}, Std Dev = {np.std(pnl_paths):.4f}")
+
+        except TypeError as e:
+            # fallback si tu clase usa 'sigma' en vez de 'sigma_v'
+            if "unexpected keyword argument 'sigma_v'" in str(e):
+                simulator = HestonDeltaHedgingSimulator(
+                    S0=float(S0), K=float(K), T=float(T), r=float(r),
+                    v0=float(v0), kappa=float(kappa), theta=float(theta),
+                    sigma=float(sigma_v), rho=float(np.clip(rho, -0.9999, 0.9999)),
+                    option_type=option_type,
+                    N_steps=int(N_steps), N_paths=int(N_paths),
+                    hedge_freq=1, bump=1e-4
+                )
                 pnl_paths, time_grid, pnl_over_time, hedging_errors = simulator.simulate()
-
-                st.plotly_chart(PlotUtils.plot_hedging_pnl(time_grid, np.mean(pnl_over_time, axis=0), "📈 Heston Delta Hedging P&L"), use_container_width=True)
-                st.plotly_chart(PlotUtils.plot_hedging_pnl_histogram(pnl_paths, "📊 Final P&L Distribution (Heston)"), use_container_width=True)
-                st.plotly_chart(PlotUtils.plot_hedging_error_over_time(time_grid, np.mean(np.abs(hedging_errors), axis=0), "📉 Hedging Error (Heston)"), use_container_width=True)
-
+                # repetir plots/resumen
+                st.plotly_chart(
+                    PlotUtils.plot_hedging_pnl(time_grid, np.mean(pnl_over_time, axis=0), "📈 Heston Delta Hedging P&L"),
+                    use_container_width=True
+                )
+                st.plotly_chart(
+                    PlotUtils.plot_hedging_pnl_histogram(pnl_paths, "📊 Final P&L Distribution (Heston)"),
+                    use_container_width=True
+                )
+                st.plotly_chart(
+                    PlotUtils.plot_hedging_error_over_time(time_grid, np.mean(np.abs(hedging_errors), axis=0), "📉 Hedging Error (Heston)"),
+                    use_container_width=True
+                )
                 st.success(f"✅ Heston simulation complete: Mean P&L = {np.mean(pnl_paths):.4f}, Std Dev = {np.std(pnl_paths):.4f}")
+            else:
+                st.error(f"❌ Heston simulation failed: {e}")
 
-            except Exception as e:
-                st.error(f"❌ Heston simulation failed: {str(e)}")
+        except Exception as e:
+            st.error(f"❌ Heston simulation failed: {e}")
