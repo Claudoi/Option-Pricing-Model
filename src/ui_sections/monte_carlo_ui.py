@@ -206,7 +206,7 @@ def monte_carlo_ui():
 
     # ------- DELTA METHODS COMPARISON -------
     st.markdown('<div class="card" style="padding:1rem;">', unsafe_allow_html=True)
-    st.markdown("#### 🔍 Delta Estimation Methods Comparison")
+    st.markdown("####Delta Estimation Methods Comparison")
     try:
         dc = st.session_state["mc_delta_comparison"]
         greek_dict = {
@@ -226,7 +226,7 @@ def monte_carlo_ui():
 
     # ------- (OPTIONAL) GREEK SURFACE CARD -------
     st.markdown('<div class="card" style="padding:1rem;">', unsafe_allow_html=True)
-    st.markdown("#### 🧮 Greek Surface (Beta)")
+    st.markdown("####Greek Surface (Beta)")
     selected_greek = st.selectbox("Select Greek", ["delta", "vega", "theta", "rho"], key="mc_greek_surface")
 
     try:

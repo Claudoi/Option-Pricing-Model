@@ -40,9 +40,9 @@ def render_delta_hedging_tab(tab):
                 simulator = DeltaHedgingSimulator(S0, K, T, r, sigma, option_type, steps, n_paths)
                 pnl_paths, time_grid, pnl_over_time, hedging_errors = simulator.simulate()
 
-                st.plotly_chart(PlotUtils.plot_hedging_pnl(time_grid, np.mean(pnl_over_time, axis=0), "📈 Mean Delta Hedging P&L"), use_container_width=True)
-                st.plotly_chart(PlotUtils.plot_hedging_pnl_histogram(pnl_paths, "📊 Final P&L Distribution"), use_container_width=True)
-                st.plotly_chart(PlotUtils.plot_hedging_error_over_time(time_grid, np.mean(np.abs(hedging_errors), axis=0), "📉 Mean Absolute Hedging Error"), use_container_width=True)
+                st.plotly_chart(PlotUtils.plot_hedging_pnl(time_grid, np.mean(pnl_over_time, axis=0), "Mean Delta Hedging P&L"), use_container_width=True)
+                st.plotly_chart(PlotUtils.plot_hedging_pnl_histogram(pnl_paths, "Final P&L Distribution"), use_container_width=True)
+                st.plotly_chart(PlotUtils.plot_hedging_error_over_time(time_grid, np.mean(np.abs(hedging_errors), axis=0), "Mean Absolute Hedging Error"), use_container_width=True)
 
                 st.success(f"✅ Simulation complete: Mean P&L = {np.mean(pnl_paths):.4f}, Std Dev = {np.std(pnl_paths):.4f}")
 

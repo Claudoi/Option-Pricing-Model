@@ -52,7 +52,7 @@ def _render_vol_surface_tab(tab):
 def _render_svi_tab(tab):
     with tab:
         st.markdown('<div class="card" style="padding:1rem;">', unsafe_allow_html=True)
-        st.subheader("📉 SVI Calibration")
+        st.subheader("SVI Calibration")
 
         # Unique radio key + label to avoid collisions with other tabs
         mode = st.radio(
@@ -83,7 +83,7 @@ def _render_svi_tab(tab):
                 key="svi_T_input",
             )
 
-            if st.button("⚙️ Calibrate SVI (Smile)", key="svi_smile_btn"):
+            if st.button("Calibrate SVI (Smile)", key="svi_smile_btn"):
                 try:
                     k_vals = np.array([float(x.strip()) for x in k_input.split(",")])
                     iv_vals = np.array([float(x.strip()) for x in iv_input.split(",")])
@@ -146,7 +146,7 @@ def _render_svi_tab(tab):
 def _render_sabr_tab(tab):
     with tab:
         st.markdown('<div class="card" style="padding:1rem;">', unsafe_allow_html=True)
-        st.subheader("📈 SABR Calibration")
+        st.subheader("SABR Calibration")
 
         mode = st.radio(
             label="Calibration Mode (SABR)",
@@ -178,7 +178,7 @@ def _render_sabr_tab(tab):
                 key="sabr_T_input",
             )
 
-            if st.button("🎯 Calibrate SABR (Smile)", key="sabr_smile_btn"):
+            if st.button("Calibrate SABR (Smile)", key="sabr_smile_btn"):
                 try:
                     strikes = np.array([float(x.strip()) for x in K_input.split(",")])
                     ivs = np.array([float(x.strip()) for x in iv_input.split(",")])

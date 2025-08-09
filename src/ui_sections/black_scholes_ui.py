@@ -146,7 +146,7 @@ def black_scholes_ui():
 
     # ------- HEATMAPS CARD -------
     st.markdown('<div class="card" style="padding:1rem;">', unsafe_allow_html=True)
-    st.markdown("#### 🔥 Heatmaps")
+    st.markdown("#### Heatmaps")
     fig_heatmap_call, fig_heatmap_put = PlotUtils.plot_black_scholes_heatmaps(
         K, T, r, q, S_min, S_max, sigma_min, sigma_max, resolution
     )

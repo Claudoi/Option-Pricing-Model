@@ -33,7 +33,7 @@ def binomial_ui():
             st.success(f"Binomial {style} Option Price: {price:.4f}")
 
             # --- Interactive Plot ---
-            st.markdown("#### 📉 Option Price vs Spot")
+            st.markdown("#### Option Price vs Spot")
             fig = PlotUtils.plot_binomial_price_vs_spot(
                 K, T, r, sigma, N, option_type, q, BinomialOption
             )
@@ -41,10 +41,10 @@ def binomial_ui():
 
             # --- Tree Display for small N ---
             if N <= 6:
-                st.markdown("#### 🌳 Binomial Tree")
+                st.markdown("#### Binomial Tree")
                 PlotUtils.show_binomial_tree(S, K, T, r, sigma, N, option_type, q, BinomialOption)
 
-                st.markdown("#### 🧪 Local Sensitivities per Node")
+                st.markdown("#### Local Sensitivities per Node")
                 try:
                     tree = bin_opt.get_sensitivities_tree(american=(style == "American"))
                     dot = PlotUtils.graphviz_binomial_sensitivities(tree)
