@@ -13,7 +13,7 @@ from src.utils.plot_utils import PlotUtils
 
 def risk_ui():
     # ------- SECTION HEADER -------
-    st.markdown("### 📊 Portfolio Risk Analysis & VaR/ES")
+    st.markdown("## Portfolio Risk Analysis & VaR/ES")
     st.markdown('<div class="small-muted">Download historical data • Compute ratios • Visualize VaR & ES</div>', unsafe_allow_html=True)
 
     # ------- INPUT FORM IN CARD -------

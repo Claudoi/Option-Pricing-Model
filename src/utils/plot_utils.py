@@ -433,7 +433,7 @@ class PlotUtils:
     def plot_local_vol_surface(strikes: np.ndarray, maturities: np.ndarray, local_vol_grid: np.ndarray):
         T_mesh, K_mesh = np.meshgrid(maturities, strikes, indexing="ij")  # (len(T), len(K)) para z-grid
 
-        st.markdown("#### 🧪 Preview local volatility grid")
+        st.markdown("### Preview local volatility grid")
         st.dataframe(local_vol_grid)
 
         num_total = local_vol_grid.size
@@ -545,7 +545,7 @@ class PlotUtils:
         ))
 
         fig.update_layout(
-            title="🎯 Heston Calibration: Market vs Model Prices",
+            title="Heston Calibration: Market vs Model Prices",
             xaxis_title="Strike Price (K)",
             yaxis_title="Option Price",
             template="plotly_white",
@@ -676,7 +676,7 @@ class PlotUtils:
         ))
 
         fig.update_layout(
-            title="📊 Risk Ratios Overview",
+            title="Risk Ratios Overview",
             xaxis_title="Ratio",
             yaxis_title="Value",
             xaxis_tickangle=30
