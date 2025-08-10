@@ -41,12 +41,14 @@ class MonteCarloOption:
         Simulates price paths for the underlying asset.
         """
         dt = self.T / self.n_steps
+        mu = (self.r - self.q - 0.5 * self.sigma**2)  # <= include dividend yield
         Z = np.random.normal(0, 1, size=(self.n_simulations, self.n_steps))
         paths = np.zeros_like(Z)
         paths[:, 0] = self.S
         for t in range(1, self.n_steps):
-            paths[:, t] = paths[:, t-1] * np.exp((self.r - 0.5 * self.sigma**2) * dt + self.sigma * np.sqrt(dt) * Z[:, t])
+            paths[:, t] = paths[:, t-1] * np.exp(mu * dt + self.sigma * np.sqrt(dt) * Z[:, t])
         return paths
+
 
 
     def price_asian(self):
@@ -230,14 +232,13 @@ class MonteCarloOption:
         else:
             d_payoff = (ST < self.K).astype(float)
 
+
         if greek == "delta":
-            delta_estimate = discount * np.mean(d_payoff * ST / self.S)
-            return delta_estimate
+            return discount * np.mean(d_payoff * ST / self.S)
 
         elif greek == "vega":
-            # Vega pathwise for lognormal model
-            ln_ST = np.log(ST / self.S)
-            vega_estimate = discount * np.mean(d_payoff * ln_ST * ST / self.sigma)
+            Z = (np.log(ST / self.S) - (self.r - self.q - 0.5*self.sigma**2)*self.T) / (self.sigma * np.sqrt(self.T))
+            vega_estimate = discount * np.mean(d_payoff * ST * (Z * np.sqrt(self.T)))
             return vega_estimate
 
         else:
@@ -261,16 +262,16 @@ class MonteCarloOption:
         discount = np.exp(-self.r * self.T)
         payoffs = calculate_payoff(ST, self.K, self.option_type)
 
+
         if greek == "delta":
-            # d log(ST) / dS = 1 / S
-            weights = (np.log(ST / self.S) / (self.sigma**2 * self.T) + 1) / self.S
+            numer = np.log(ST / self.S) - (self.r - self.q - 0.5*self.sigma**2)*self.T
+            weights = (1.0 - numer / (self.sigma**2 * self.T)) / self.S
             delta = discount * np.mean(payoffs * weights)
             return delta
 
         elif greek == "vega":
-            # d log(ST) / dσ = (Z̄ * sqrt(T) - σ * T) / σ
-            Z_avg = np.mean(Z, axis=1)
-            weights = (Z_avg * np.sqrt(self.T) - self.sigma * self.T) / self.sigma
+            numer = np.log(ST / self.S) - (self.r - self.q - 0.5*self.sigma**2)*self.T
+            weights = (numer / self.sigma - self.sigma * self.T) / self.sigma
             vega = discount * np.mean(payoffs * weights)
             return vega
 

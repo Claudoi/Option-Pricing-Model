@@ -52,7 +52,7 @@ def render_delta_hedging_tab(tab):
                         "K": K, "r": r, "sigma": sigma, "option_type": option_type
                     }
 
-                    st.markdown("### 🔍 Delta Hedging P&L Decomposition")
+                    st.markdown("### Delta Hedging P&L Decomposition")
                     decomposer = HedgingPnLAttribution(simulator.last_S, time_grid, K, r, sigma, option_type)
                     pnl_dict = decomposer.decompose()
                     st.plotly_chart(PlotUtils.plot_hedging_pnl_decomposition(pnl_dict, time_grid), use_container_width=True)
@@ -120,7 +120,7 @@ def render_heston_hedging_tab(tab):
             st.success(f"✅ Heston simulation complete: Mean P&L = {np.mean(pnl_paths):.4f}, Std Dev = {np.std(pnl_paths):.4f}")
 
         except TypeError as e:
-            # fallback si tu clase usa 'sigma' en vez de 'sigma_v'
+            # if your class uses 'sigma' instead of 'sigma_v'
             if "unexpected keyword argument 'sigma_v'" in str(e):
                 simulator = HestonDeltaHedgingSimulator(
                     S0=float(S0), K=float(K), T=float(T), r=float(r),
@@ -131,7 +131,7 @@ def render_heston_hedging_tab(tab):
                     hedge_freq=1, bump=1e-4
                 )
                 pnl_paths, time_grid, pnl_over_time, hedging_errors = simulator.simulate()
-                # repetir plots/resumen
+                # repeat plots/summary
                 st.plotly_chart(
                     PlotUtils.plot_hedging_pnl(time_grid, np.mean(pnl_over_time, axis=0), "📈 Heston Delta Hedging P&L"),
                     use_container_width=True

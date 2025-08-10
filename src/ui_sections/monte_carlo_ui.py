@@ -7,11 +7,12 @@ from src.utils.plot_utils import PlotUtils
 
 
 def monte_carlo_ui():
-    # ------- SECTION HEADER -------
+    
+    # Header
     st.markdown("## Monte Carlo Option Pricing")
     st.markdown('<div class="small-muted">Simulation-based pricing • Exotic payoffs • MC Greeks</div>', unsafe_allow_html=True)
 
-    # ------- INPUT FORM INSIDE A “CARD” -------
+    # Input Form
     st.markdown('<div class="card" style="padding:1rem;">', unsafe_allow_html=True)
     with st.form("mc_form"):
         st.markdown("#### Option Parameters")
@@ -68,18 +69,18 @@ def monte_carlo_ui():
         submitted = st.form_submit_button("Calculate")
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # ------- EARLY EXIT -------
+    # Early Exit
     if not submitted:
         return
 
-    # ------- BASIC VALIDATION -------
+    # Basic Validation
     if any(v <= 0 for v in [S, K, T]) or sigma <= 0:
         st.error("Inputs must be strictly positive (S, K, T, σ).")
         return
     if n_sim < 1000 or n_steps < 10:
         st.warning("For stable estimates, consider ≥ 1,000 sims and ≥ 10 time steps.")
 
-    # ------- PRICING & PATH SIMULATION -------
+    # Pricing & Path Simulation
     try:
         # Set seed (if provided)
         if seed != 0:
@@ -153,7 +154,7 @@ def monte_carlo_ui():
         st.error(f"Error in Monte Carlo pricing: {e}")
         return
 
-    # ------- RESULTS CARD -------
+    # Results Card
     st.markdown('<div class="card" style="padding:1rem;">', unsafe_allow_html=True)
     st.markdown("#### Results")
     cA, cB, cC, cD = st.columns(4)
@@ -163,19 +164,19 @@ def monte_carlo_ui():
     cD.metric("σ (input)", f"{st.session_state['mc_params']['sigma']:.4f}")
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # ------- VISUALIZATIONS CARD: TABS -------
+    # Visualizations 
     st.markdown('<div class="card" style="padding:1rem;">', unsafe_allow_html=True)
     st.markdown("#### Visualizations")
     t1, t2, t3 = st.tabs(["Simulated Paths", "Payoff Distribution", "MC Greeks"])
 
-    # --- Simulated Paths ---
+    # Simulated Paths 
     with t1:
         try:
             st.plotly_chart(PlotUtils.plot_mc_paths(st.session_state["mc_paths"]), use_container_width=True)
         except Exception as e:
             st.error(f"Error plotting simulated paths: {e}")
 
-    # --- Payoff Histogram ---
+    # Payoff Histogram 
     with t2:
         try:
             ST = st.session_state["mc_paths"][:, -1]
@@ -189,7 +190,7 @@ def monte_carlo_ui():
         except Exception as e:
             st.error(f"Error plotting payoff distribution: {e}")
 
-    # --- MC Greeks (point estimates) ---
+    # MC Greeks
     with t3:
         try:
             g = st.session_state["mc_greeks"]
@@ -204,9 +205,9 @@ def monte_carlo_ui():
 
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # ------- DELTA METHODS COMPARISON -------
+    # Delta Methods Comparison 
     st.markdown('<div class="card" style="padding:1rem;">', unsafe_allow_html=True)
-    st.markdown("####Delta Estimation Methods Comparison")
+    st.markdown("#### Delta Estimation Methods Comparison")
     try:
         dc = st.session_state["mc_delta_comparison"]
         greek_dict = {
@@ -224,9 +225,10 @@ def monte_carlo_ui():
         st.error(f"Error plotting delta comparison: {e}")
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # ------- (OPTIONAL) GREEK SURFACE CARD -------
+
+    # Greek Surface 
     st.markdown('<div class="card" style="padding:1rem;">', unsafe_allow_html=True)
-    st.markdown("####Greek Surface (Beta)")
+    st.markdown("#### Greek Surface (Beta)")
     selected_greek = st.selectbox("Select Greek", ["delta", "vega", "theta", "rho"], key="mc_greek_surface")
 
     try:

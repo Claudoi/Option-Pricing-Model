@@ -7,11 +7,11 @@ from src.utils.plot_utils import PlotUtils
 
 
 def black_scholes_ui():
-    # ------- SECTION HEADER -------
+    # Header
     st.markdown("## Black-Scholes Option Pricing")
     st.markdown('<div class="small-muted">Analytical pricing • Greeks • IV</div>', unsafe_allow_html=True)
 
-    # ------- INPUT FORM INSIDE A “CARD” -------
+    # Input Form
     st.markdown('<div class="card" style="padding:1rem;">', unsafe_allow_html=True)
     with st.form("black_scholes_form"):
         st.markdown("#### Option Parameters")
@@ -54,7 +54,7 @@ def black_scholes_ui():
         submitted = st.form_submit_button("Calculate")
     st.markdown('</div>', unsafe_allow_html=True)  # close card
 
-    # ------- CALCULATION LOGIC -------
+    # Logic
     if not submitted:
         return
 
@@ -97,7 +97,7 @@ def black_scholes_ui():
     price = option.price()
     greeks = option.greeks()
 
-    # ------- RESULTS CARD -------
+    # Results Card
     st.markdown('<div class="card" style="padding:1rem;">', unsafe_allow_html=True)
     st.markdown("#### Results")
     cA, cB, cC, cD = st.columns(4)
@@ -111,7 +111,7 @@ def black_scholes_ui():
     cF.metric("Rho", f"{greeks['rho']:.4f}")
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # ------- VISUALIZATIONS IN TABS -------
+    # Visualizations
     st.markdown('<div class="card" style="padding:1rem;">', unsafe_allow_html=True)
     st.markdown("#### Visualizations")
     t1, t2, t3 = st.tabs(["Price vs Spot", "Greeks vs Spot", "Implied Volatility"])
@@ -144,7 +144,7 @@ def black_scholes_ui():
             st.info("Enable “Calculate Implied Volatility” to see this chart.")
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # ------- HEATMAPS CARD -------
+    # Heatmaps
     st.markdown('<div class="card" style="padding:1rem;">', unsafe_allow_html=True)
     st.markdown("#### Heatmaps")
     fig_heatmap_call, fig_heatmap_put = PlotUtils.plot_black_scholes_heatmaps(

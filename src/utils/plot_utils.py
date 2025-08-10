@@ -266,11 +266,9 @@ class PlotUtils:
 
     @staticmethod
     def plot_mc_greek_comparison(strikes: np.ndarray, greeks_dict: dict, greek_name: str, title: str):
-
         fig = go.Figure()
         for method, values in greeks_dict.items():
             fig.add_trace(go.Scatter(x=strikes, y=values, mode='lines+markers', name=method))
-
         fig.update_layout(
             title=title,
             xaxis_title="Strike (K)",
@@ -280,10 +278,58 @@ class PlotUtils:
         )
         return fig
 
+
     @staticmethod
-    def plot_mc_greek_surface(strikes: np.ndarray, maturities: np.ndarray, greek_surface: np.ndarray, greek_name: str):
-        K_mesh, T_mesh = np.meshgrid(strikes, maturities, indexing='xy')
-        fig = go.Figure(data=[go.Surface(x=K_mesh, y=T_mesh, z=greek_surface)])
+    def plot_mc_greek_surface(strikes: np.ndarray,maturities: np.ndarray, greek_surface: np.ndarray, 
+                              greek_name: str, fill_nan: float | None = None):
+
+        K = np.asarray(strikes, dtype=float).reshape(-1)
+        T = np.asarray(maturities, dtype=float).reshape(-1)
+        Z = np.asarray(greek_surface, dtype=float)
+
+
+        if K.size == 0 or T.size == 0:
+            raise ValueError("Empty strikes or maturities.")
+        if Z.ndim != 2:
+            raise ValueError(f"greek_surface must be 2D, got ndim={Z.ndim}.")
+
+
+        expected = (T.size, K.size)
+        if Z.shape != expected:
+            if Z.shape == (K.size, T.size):
+                Z = Z.T  
+            else:
+                raise ValueError(
+                    f"greek_surface has shape {Z.shape}, expected {expected} "
+                    f"or transposed {(K.size, T.size)}."
+                )
+
+
+        K_sorted_idx = np.argsort(K)
+        T_sorted_idx = np.argsort(T)
+        if not np.all(K_sorted_idx == np.arange(K.size)):
+            K = K[K_sorted_idx]
+            Z = Z[:, K_sorted_idx]
+        if not np.all(T_sorted_idx == np.arange(T.size)):
+            T = T[T_sorted_idx]
+            Z = Z[T_sorted_idx, :]
+
+        
+        bad = ~np.isfinite(Z)
+        if bad.any():
+            if fill_nan is None:
+                
+                Z = Z.copy()
+                Z[bad] = 0.0
+            else:
+                Z = Z.copy()
+                Z[bad] = float(fill_nan)
+
+        
+        K_mesh, T_mesh = np.meshgrid(K, T, indexing="xy")
+
+        
+        fig = go.Figure(data=[go.Surface(x=K_mesh, y=T_mesh, z=Z, name=greek_name)])
         fig.update_layout(
             title=f"{greek_name} Surface via Monte Carlo",
             scene=dict(
@@ -294,6 +340,7 @@ class PlotUtils:
             height=600
         )
         return fig
+
 
 
 
@@ -501,7 +548,7 @@ class PlotUtils:
         ))
 
         fig.update_layout(
-            title="📈 Heston Model: Option Price vs Strike",
+            title="Heston Model: Option Price vs Strike",
             xaxis_title="Strike Price (K)",
             yaxis_title="Option Price",
             template="plotly_dark",
@@ -615,19 +662,26 @@ class PlotUtils:
 
 
     @staticmethod
-    def plot_garch_var_bar(var_value: float):
+    def plot_garch_var_bar(var_array: np.ndarray,
+                           title: str = "GARCH VaR (1-day ahead forecast)"):
+        """
+        Plot a single-bar chart for the GARCH VaR value.
+        Automatically handles NaNs or empty arrays.
+        """
+        v = float(np.asarray(var_array).reshape(-1)[-1]) if var_array.size else np.nan
         fig = go.Figure()
-        fig.add_trace(go.Bar(
-            y=[var_value],
-            name="GARCH VaR (1-day)",
-            marker_color="firebrick"
-        ))
 
-        fig.update_layout(
-            title="GARCH VaR (1-day ahead forecast)",
-            yaxis_title="VaR"
-        )
+        if np.isfinite(v):
+            fig.add_trace(go.Bar(x=["VaR (1d)"], y=[abs(v)], name="GARCH VaR (1-day)"))
+            fig.update_yaxes(title_text="VaR", rangemode="tozero")
+        else:
+            fig.add_annotation(text="VaR not available", x=0.5, y=0.5, showarrow=False)
+            fig.update_xaxes(visible=False)
+            fig.update_yaxes(visible=False)
+
+        fig.update_layout(title=title, height=400)
         return fig
+
 
 
     @staticmethod
@@ -845,4 +899,140 @@ class PlotUtils:
             yaxis_title="Cumulative PnL",
             height=500
         )
+        return fig
+    
+
+
+    @staticmethod
+    def plot_binomial_tree_from_nodes(
+        node_tree,
+        title="Binomial Tree",
+        show_axes=True,
+        show_grid=True,
+        show_level_labels=True,
+        highlight_node=None,       # (i, j) or None
+        highlight_path=True,       # emphasize path from root to (i,j)
+        show_indices=False         # annotate i,j on selected
+    ):
+        """
+        Visual, orientation-first binomial tree:
+        - Grid + integer ticks for level (y).
+        - Optional left-side "Level i" labels.
+        - Optional highlight of a node (i,j) and its path from the root.
+        - Crosshair lines at the selected level and x-position.
+
+        node_tree: list of levels, each with dict nodes {'S','V','Delta','Gamma'}
+        """
+        N = len(node_tree) - 1
+
+        # Layout positions (centered per level). y = i (0..N). We'll show Level 0 at top.
+        node_xy = {(i, j): (j - i/2, i) for i in range(N + 1) for j in range(i + 1)}
+
+        # --- Base edges (light) ---
+        xe, ye = [], []
+        for i in range(N):
+            for j in range(i + 1):
+                x0, y0 = node_xy[(i, j)]
+                x1, y1 = node_xy[(i + 1, j)]
+                x2, y2 = node_xy[(i + 1, j + 1)]
+                xe += [x0, x1, None, x0, x2, None]
+                ye += [y0, y1, None, y0, y2, None]
+        edges_base = go.Scatter(x=xe, y=ye, mode="lines", hoverinfo="skip", opacity=0.35)
+
+        # --- Base nodes (light) ---
+        xs, ys, hovers = [], [], []
+        for i, level in enumerate(node_tree):
+            for j, node in enumerate(level):
+                x, y = node_xy[(i, j)]
+                xs.append(x); ys.append(y)
+                S = node.get("S"); V = node.get("V")
+                D = node.get("Delta"); G = node.get("Gamma")
+                lines = [f"S={S:.2f}"]
+                if V is not None: lines.append(f"V={V:.2f}")
+                if D is not None and D == D: lines.append(f"Δ={D:.4f}")
+                if G is not None and G == G: lines.append(f"Γ={G:.4f}")
+                hovers.append("<br>".join(lines))
+        node_size = max(10, 22 - int(N / 2))
+        nodes_base = go.Scatter(
+            x=xs, y=ys, mode="markers",
+            hovertemplate="%{text}<extra></extra>", text=hovers,
+            marker=dict(size=node_size, line=dict(width=1)),
+            opacity=0.5
+        )
+
+        fig = go.Figure([edges_base, nodes_base])
+
+        # --- Highlight (node + path + crosshair) ---
+        annotations = []
+        shapes = []
+        if highlight_node is not None:
+            hi, hj = highlight_node
+            # Clamp
+            hi = max(0, min(N, hi))
+            hj = max(0, min(hi, hj))
+            hx, hy = node_xy[(hi, hj)]
+
+            # Crosshair lines (level and x-position)
+            shapes += [
+                dict(type="line", x0=min(xs), x1=max(xs), y0=hy, y1=hy),   # horizontal at level
+                dict(type="line", x0=hx, x1=hx, y0=0, y1=N)                # vertical through node
+            ]
+
+            # Emphasize path from root to (hi,hj)
+            if highlight_path and hi > 0:
+                px, py = [], []
+                ii, jj = 0, 0
+                px.append(node_xy[(0, 0)][0]); py.append(node_xy[(0, 0)][1])
+                # Always: from (i,j) next step is either (i+1, j) or (i+1, j+1). To reach (hi,hj),
+                # perform (hi - hj) "down-left" moves and (hj) "down-right" moves in any order.
+                # We draw a monotone path: first go right jj times, then left the rest.
+                for _ in range(jj, hj):  # right moves
+                    x1, y1 = node_xy[(ii + 1, jj + 1)]
+                    px += [x1]; py += [y1]; ii += 1; jj += 1
+                for _ in range(ii, hi):  # left moves
+                    x1, y1 = node_xy[(ii + 1, jj)]
+                    px += [x1]; py += [y1]; ii += 1
+                path_trace = go.Scatter(x=px, y=py, mode="lines", hoverinfo="skip")
+                fig.add_trace(path_trace)
+
+            # Highlighted node (bigger, full opacity)
+            node_hi = go.Scatter(
+                x=[hx], y=[hy], mode="markers",
+                hovertemplate="%{text}<extra></extra>",
+                text=[hovers[sum(range(hi+1)) + hj] if hovers else ""],
+                marker=dict(size=node_size + 8, line=dict(width=2))
+            )
+            fig.add_trace(node_hi)
+
+            # Optional badge with indices
+            if show_indices:
+                annotations.append(dict(
+                    x=hx, y=max(0, hy - 0.7),
+                    text=f"(i={hi}, j={hj})",
+                    showarrow=False, xanchor="center", yanchor="top"
+                ))
+
+        # Axes & grid
+        fig.update_xaxes(visible=show_axes, showgrid=show_grid, dtick=1)
+        fig.update_yaxes(visible=show_axes, showgrid=show_grid, dtick=1,
+                         autorange="reversed", title_text="Level" if show_axes else None)
+
+        # Level labels at left
+        if show_level_labels:
+            min_x = (min(xs) if xs else -N/2) - 0.8
+            for i in range(N + 1):
+                annotations.append(dict(
+                    x=min_x, y=i, text=f"Level {i}",
+                    showarrow=False, xanchor="right", yanchor="middle", align="right"
+                ))
+            fig.update_layout(margin=dict(l=80, r=10, t=40, b=10))
+        else:
+            fig.update_layout(margin=dict(l=10, r=10, t=40, b=10))
+
+        if shapes:
+            fig.update_layout(shapes=shapes)
+        if annotations:
+            fig.update_layout(annotations=annotations)
+
+        fig.update_layout(title=title, showlegend=False)
         return fig

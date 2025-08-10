@@ -24,9 +24,9 @@ def render_volatility_ui():
     _render_heston_tab(tabs[4])
 
 
-# =========================
+
 # Vol Surface (Market Data)
-# =========================
+
 def _render_vol_surface_tab(tab):
     with tab:
         st.markdown('<div class="card" style="padding:1rem;">', unsafe_allow_html=True)
@@ -46,9 +46,9 @@ def _render_vol_surface_tab(tab):
         st.markdown('</div>', unsafe_allow_html=True)
 
 
-# ==============
+
 # SVI Calibration
-# ==============
+
 def _render_svi_tab(tab):
     with tab:
         st.markdown('<div class="card" style="padding:1rem;">', unsafe_allow_html=True)
@@ -140,9 +140,9 @@ def _render_svi_tab(tab):
         st.markdown('</div>', unsafe_allow_html=True)
 
 
-# ===============
+
 # SABR Calibration
-# ===============
+
 def _render_sabr_tab(tab):
     with tab:
         st.markdown('<div class="card" style="padding:1rem;">', unsafe_allow_html=True)
@@ -250,13 +250,13 @@ def _render_sabr_tab(tab):
         st.markdown('</div>', unsafe_allow_html=True)
 
 
-# =================
+
 # Local Volatility
-# =================
+
 def _render_local_vol_tab(tab):
     with tab:
         st.markdown('<div class="card" style="padding:1rem;">', unsafe_allow_html=True)
-        st.subheader("📉 Local Volatility Surface (Dupire)")
+        st.subheader("Local Volatility Surface (Dupire)")
 
         # Inputs
         strikes_input = st.text_area(
@@ -324,9 +324,9 @@ def _render_local_vol_tab(tab):
         st.markdown('</div>', unsafe_allow_html=True)
 
 
-# =============
+
 # Heston Model
-# =============
+
 def _render_heston_tab(tab):
     with tab:
         st.markdown('<div class="card" style="padding:1rem;">', unsafe_allow_html=True)

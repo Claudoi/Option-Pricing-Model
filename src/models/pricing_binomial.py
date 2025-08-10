@@ -100,7 +100,7 @@ class BinomialOption:
         d = 1 / u
         tree = []
         for i in range(self.N + 1):
-            # En el paso i hay i precios "down" y N-i precios "up"
+            # At step i, there are i "down" prices and N-i "up" prices
             level = [S * (u ** (i - j)) * (d ** j) for j in range(i + 1)]
             tree.append(level)
         return tree
@@ -119,11 +119,11 @@ class BinomialOption:
         discount = np.exp(-self.r * dt)
         p = (np.exp((self.r - self.q) * dt) - d) / (u - d)
 
-        # Construcción de árbol de precios spot
+        # Construction of spot price tree
         spot_tree = [[self.S * (u ** (i - j)) * (d ** j) for j in range(i + 1)] for i in range(N + 1)]
-        # Construcción de árbol de valores de la opción
+        # Construction of option value tree
         value_tree = [[0.0 for _ in range(i + 1)] for i in range(N + 1)]
-        # Inicializa hojas
+        # Initialize leaves
         for j in range(N + 1):
             S_T = spot_tree[N][j]
             value_tree[N][j] = calculate_payoff(S_T, self.K, self.option_type)
@@ -150,9 +150,9 @@ class BinomialOption:
                 S_down = spot_tree[i + 1][j + 1]
                 V_up = value_tree[i + 1][j]
                 V_down = value_tree[i + 1][j + 1]
-                # Delta local
+                # Local Delta
                 delta = (V_up - V_down) / (S_up - S_down) if (S_up != S_down) else float('nan')
-                # Gamma local (solo si no es penúltimo nivel)
+                # Local Gamma (only if not second to last level)
                 if i < N - 1:
                     S_uu = spot_tree[i + 2][j]
                     S_ud = spot_tree[i + 2][j + 1]
@@ -172,7 +172,7 @@ class BinomialOption:
                     'Gamma': gamma
                 })
             node_tree.append(level)
-        # Añadir el último nivel (hojas, solo S y V)
+        # Add the last level (leaves, only S and V)
         level = [{'S': spot_tree[N][j], 'V': value_tree[N][j], 'Delta': float('nan'), 'Gamma': float('nan')} for j in range(N + 1)]
         node_tree.append(level)
         return node_tree

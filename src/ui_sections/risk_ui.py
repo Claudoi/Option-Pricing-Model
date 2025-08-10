@@ -12,11 +12,11 @@ from src.utils.plot_utils import PlotUtils
 
 
 def risk_ui():
-    # ------- SECTION HEADER -------
+    # Header
     st.markdown("## Portfolio Risk Analysis & VaR/ES")
     st.markdown('<div class="small-muted">Download historical data • Compute ratios • Visualize VaR & ES</div>', unsafe_allow_html=True)
 
-    # ------- INPUT FORM IN CARD -------
+    # Input Form
     st.markdown('<div class="card" style="padding:1rem;">', unsafe_allow_html=True)
     with st.form("risk_data_form"):
         # Portfolio tickers
@@ -51,7 +51,7 @@ def risk_ui():
         st.stop()
 
     try:
-        # ------- DATA DOWNLOAD -------
+        # Data Download
         returns = fetch_returns_from_yahoo(tickers, str(start), str(end))
         if returns.empty:
             st.error("No data returned for the given tickers and date range.")
@@ -59,7 +59,7 @@ def risk_ui():
 
         portfolio_returns = returns @ weights
 
-        # ------- RISK RATIOS -------
+        # Risk Ratios
         risk_ratios = RiskRatios(portfolio_returns)
         ratios_dict = {
             "Sharpe": risk_ratios.sharpe_ratio(),
@@ -80,7 +80,7 @@ def risk_ui():
             col.metric(label=k, value=f"{v:.5f}" if isinstance(v, float) else v)
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # ------- VAR / ES ANALYSIS -------
+        # VAR / ES Analysis
         var, es, var_series = None, None, None
         st.markdown('<div class="card" style="padding:1rem;">', unsafe_allow_html=True)
         st.markdown(f"#### {method} VaR Analysis")
@@ -123,7 +123,7 @@ def risk_ui():
             except ImportError:
                 st.error("You need to install the 'arch' package for GARCH.")
 
-        # ------- HISTOGRAM WITH VAR/ES -------
+        # Histogram with VaR/ES
         if var is not None and es is not None:
             st.plotly_chart(
                 PlotUtils.plot_var_es_histogram(
