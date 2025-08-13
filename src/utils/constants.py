@@ -10,6 +10,9 @@ THETA_SCALE = 1/365    # Theta per day
 ONE_OVER_100 = 1/100
 ONE_OVER_365 = 1/365
 
+# --- stability thresholds ---
+EPS_T = 1e-10       # Minimum time to maturity to avoid division by zero
+EPS_SIG = 1e-12     # Minimum volatility to avoid division by zero
 
 
 # --- Default Parameters ---

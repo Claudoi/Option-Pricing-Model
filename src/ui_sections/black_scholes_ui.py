@@ -40,16 +40,46 @@ def black_scholes_ui():
         # Heatmap configuration
         st.markdown("---")
         st.markdown("#### Heatmap Settings")
-        c3, c4 = st.columns(2)
-        with c3:
-            S_min = st.number_input("Min Spot Price", value=50.0, min_value=1.0)
-            S_max = st.number_input("Max Spot Price", value=150.0, min_value=S_min + 1.0)
-        with c4:
-            sigma_min = st.number_input("Min Volatility", value=0.05, min_value=0.001)
-            sigma_max = st.number_input("Max Volatility", value=0.50, min_value=sigma_min + 0.01)
 
-        resolution = st.slider("Heatmap Resolution", min_value=10, max_value=100, value=50,
-                               help="Number of grid steps for the heatmap.")
+        cHM1, cHM2, cHM3 = st.columns(3)
+        with cHM1:
+            heatmap_metric = st.selectbox(
+                "Metric",
+                ["price", "delta", "gamma", "vega", "theta", "rho"],
+                help="Choose what the heatmap colors represent."
+            )
+        with cHM2:
+            heatmap_axes = st.selectbox(
+                "Axes",
+                ["S–σ", "K–T"],
+                help="Choose the two variables for the heatmap plane."
+            )
+        with cHM3:
+            resolution = st.slider("Resolution", min_value=10, max_value=150, value=50,
+                                   help="Number of grid steps for the heatmap.")
+
+        # Dynamic ranges based on axes
+        if heatmap_axes == "S–σ":
+            c3, c4 = st.columns(2)
+            with c3:
+                S_min = st.number_input("Min Spot Price", value=50.0, min_value=1.0)
+                S_max = st.number_input("Max Spot Price", value=150.0, min_value=S_min + 1.0)
+            with c4:
+                sigma_min = st.number_input("Min Volatility", value=0.05, min_value=0.001)
+                sigma_max = st.number_input("Max Volatility", value=0.50, min_value=sigma_min + 0.01)
+
+            center_on_iv = False
+            if use_iv:
+                center_on_iv = st.checkbox("Center σ range around implied vol (if computed)", value=False)
+        else:
+            # K–T axes ranges
+            c5, c6 = st.columns(2)
+            with c5:
+                K_min = st.number_input("Min Strike (K)", value=max(1e-3, 0.5 * K))
+                K_max = st.number_input("Max Strike (K)", value=max(K_min + 1e-3, 1.5 * K))
+            with c6:
+                T_min = st.number_input("Min Time (years)", value=max(1e-4, 0.1 * T), format="%.4f")
+                T_max = st.number_input("Max Time (years)", value=max(T_min + 1e-4, 2.0 * T), format="%.4f")
 
         submitted = st.form_submit_button("Calculate")
     st.markdown('</div>', unsafe_allow_html=True)  # close card
@@ -62,14 +92,8 @@ def black_scholes_ui():
     if any(v <= 0 for v in [S, K, T]) or sigma <= 0:
         st.error("Inputs must be strictly positive (S, K, T, σ).")
         return
-    if S_min >= S_max:
-        st.error("Heatmap: Min Spot Price must be < Max Spot Price.")
-        return
-    if sigma_min >= sigma_max:
-        st.error("Heatmap: Min Volatility must be < Max Volatility.")
-        return
 
-    # If IV calculation is enabled, compute implied volatility and replace sigma
+    # IV computation (optional)
     sigma_used = sigma
     if use_iv and market_price:
         try:
@@ -92,7 +116,29 @@ def black_scholes_ui():
             st.error(f"IV Calculation Error: {e}")
             return
 
-    # Calculate price and Greeks
+    # Optionally recenter sigma range around IV
+    if heatmap_axes == "S–σ":
+        if use_iv and market_price and 'center_on_iv' in locals() and center_on_iv:
+            span = max(0.05, sigma_used * 0.75)
+            sigma_min = max(1e-4, sigma_used - span / 2)
+            sigma_max = sigma_used + span / 2
+
+        # Validate ranges
+        if S_min >= S_max:
+            st.error("Heatmap: Min Spot Price must be < Max Spot Price.")
+            return
+        if sigma_min >= sigma_max:
+            st.error("Heatmap: Min Volatility must be < Max Volatility.")
+            return
+    else:
+        if K_min >= K_max:
+            st.error("Heatmap: Min Strike must be < Max Strike.")
+            return
+        if T_min >= T_max:
+            st.error("Heatmap: Min Time must be < Max Time.")
+            return
+
+    # Point computation (price + greeks)
     option = BlackScholesOption(S, K, T, r, sigma_used, option_type, q)
     price = option.price()
     greeks = option.greeks()
@@ -147,9 +193,35 @@ def black_scholes_ui():
     # Heatmaps
     st.markdown('<div class="card" style="padding:1rem;">', unsafe_allow_html=True)
     st.markdown("#### Heatmaps")
-    fig_heatmap_call, fig_heatmap_put = PlotUtils.plot_black_scholes_heatmaps(
-        K, T, r, q, S_min, S_max, sigma_min, sigma_max, resolution
-    )
-    st.plotly_chart(fig_heatmap_call, use_container_width=True)
-    st.plotly_chart(fig_heatmap_put, use_container_width=True)
+
+    # 1) both heatmaps (call/put price over S–σ)
+    if heatmap_axes == "S–σ" and heatmap_metric == "price":
+        fig_heatmap_call, fig_heatmap_put = PlotUtils.plot_black_scholes_heatmaps(
+            K, T, r, q, S_min, S_max, sigma_min, sigma_max, resolution
+        )
+        st.plotly_chart(fig_heatmap_call, use_container_width=True)
+        st.plotly_chart(fig_heatmap_put, use_container_width=True)
+
+    # 2) Heatmap flexible (metrics and axes configurables)
+    @st.cache_data(show_spinner=False)
+    def _flex_heatmap(axes, metric, option_type, S, K, T, r, q, sigma,
+                      S_min, S_max, sigma_min, sigma_max, K_min, K_max, T_min, T_max, resolution):
+        return PlotUtils.plot_bs_heatmap_flexible(
+            axes=("S-sigma" if axes == "S–σ" else "K-T"),
+            metric=metric,
+            option_type=option_type,
+            S=S, K=K, T=T, r=r, q=q, sigma=sigma,
+            S_min=S_min, S_max=S_max, sigma_min=sigma_min, sigma_max=sigma_max,
+            K_min=K_min, K_max=K_max, T_min=T_min, T_max=T_max,
+            resolution=resolution
+        )
+
+    if heatmap_axes == "S–σ":
+        fig_flex = _flex_heatmap(heatmap_axes, heatmap_metric, option_type, S, K, T, r, q, sigma_used,
+                                 S_min, S_max, sigma_min, sigma_max, None, None, None, None, resolution)
+    else:
+        fig_flex = _flex_heatmap(heatmap_axes, heatmap_metric, option_type, S, K, T, r, q, sigma_used,
+                                 None, None, None, None, K_min, K_max, T_min, T_max, resolution)
+
+    st.plotly_chart(fig_flex, use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)

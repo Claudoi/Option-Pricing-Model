@@ -5,10 +5,20 @@ import streamlit as st
 
 
 from src.volatility.stochastic_volatility import HestonModel
-from src.models.pricing_black_scholes import BlackScholesOption
+from src.models.pricing_black_scholes import bs_price_vectorized, bs_greeks_vectorized  
 from src.models.implied_volatility import ImpliedVolatility
 
 class PlotUtils:
+
+
+     
+    @staticmethod
+    def _colors_for_metric(metric: str):
+        metric = metric.lower()
+        if metric in ("delta", "theta", "rho"):
+            return "RdBu", 0.0      
+ 
+        return "Cividis", None      
 
 
     @staticmethod
@@ -17,45 +27,122 @@ class PlotUtils:
         sigma_vals = np.linspace(sigma_min, sigma_max, resolution)
         S_grid, sigma_grid = np.meshgrid(S_vals, sigma_vals)
 
-        price_call = np.zeros_like(S_grid)
-        price_put = np.zeros_like(S_grid)
+        price_call = bs_price_vectorized(S_grid, K, T, r, sigma_grid, option_type="call", q=q)
+        price_put  = bs_price_vectorized(S_grid, K, T, r, sigma_grid, option_type="put",  q=q)
 
-        for i in range(resolution):
-            for j in range(resolution):
-                S = S_grid[i, j]
-                sigma = sigma_grid[i, j]
-                call_opt = BlackScholesOption(S, K, T, r, sigma, option_type="call", q=q)
-                put_opt = BlackScholesOption(S, K, T, r, sigma, option_type="put", q=q)
-                price_call[i, j] = call_opt.price()
-                price_put[i, j] = put_opt.price()
+
+        colorscale = "Cividis"
 
         fig_call = go.Figure(data=go.Heatmap(
-            z=price_call,
-            x=S_vals,
-            y=sigma_vals,
-            colorscale="Viridis",
-            colorbar=dict(title="Call Price")
+            z=price_call, x=S_vals, y=sigma_vals,
+            colorscale=colorscale,
+            colorbar=dict(title="Call Price"),
+            hovertemplate="S=%{x:.4g}<br>σ=%{y:.4f}<br>Price=%{z:.6f}<extra></extra>"
         ))
         fig_call.update_layout(
             title="Call Option Price Heatmap (Black-Scholes)",
             xaxis_title="Spot Price (S)",
-            yaxis_title="Volatility (σ)"
+            yaxis_title="Volatility (σ)",
+            height=500
         )
 
         fig_put = go.Figure(data=go.Heatmap(
-            z=price_put,
-            x=S_vals,
-            y=sigma_vals,
-            colorscale="Viridis",
-            colorbar=dict(title="Put Price")
+            z=price_put, x=S_vals, y=sigma_vals,
+            colorscale=colorscale,
+            colorbar=dict(title="Put Price"),
+            hovertemplate="S=%{x:.4g}<br>σ=%{y:.4f}<br>Price=%{z:.6f}<extra></extra>"
         ))
         fig_put.update_layout(
             title="Put Option Price Heatmap (Black-Scholes)",
             xaxis_title="Spot Price (S)",
-            yaxis_title="Volatility (σ)"
+            yaxis_title="Volatility (σ)",
+            height=500
         )
 
         return fig_call, fig_put
+
+
+    @staticmethod
+    def plot_bs_heatmap_flexible(
+        *,
+        axes: str,                  # "S-sigma" | "K-T"
+        metric: str,                # "price"|"delta"|"gamma"|"vega"|"theta"|"rho"
+        option_type: str,           # "call"|"put"
+        S: float, K: float, T: float, r: float, q: float, sigma: float,
+        S_min=None, S_max=None, sigma_min=None, sigma_max=None,
+        K_min=None, K_max=None, T_min=None, T_max=None,
+        resolution: int = 50,
+        colorscale: str | None = None,   # override palette if provided
+        zmid_override: float | None = None  # override zmid if provided
+    ):
+
+        default_colorscale, default_zmid = PlotUtils._colors_for_metric(metric)
+        cs = colorscale or default_colorscale
+        zmid_val = default_zmid if zmid_override is None else zmid_override
+
+        if axes == "S-sigma":
+            x_vals = np.linspace(S_min, S_max, resolution)
+            y_vals = np.linspace(sigma_min, sigma_max, resolution)
+            X, Y = np.meshgrid(x_vals, y_vals)  # rows=y (sigma), cols=x (S)
+
+            if metric == "price":
+                Z = bs_price_vectorized(X, K, T, r, Y, option_type=option_type, q=q)
+                cbar = f"{option_type.capitalize()} Price"
+                # price is non-negative → ensure sequential palette
+                if colorscale is None:
+                    cs, zmid_val = "Cividis", None
+            else:
+                G = bs_greeks_vectorized(X, K, T, r, Y, option_type=option_type, q=q)
+                Z = G[metric]
+                cbar = metric.capitalize()
+
+            fig = go.Figure(data=go.Heatmap(
+                z=Z, x=x_vals, y=y_vals,
+                colorscale=cs,
+                zmid=zmid_val,  # will be ignored if None
+                colorbar=dict(title=cbar),
+                hovertemplate="S=%{x:.4g}<br>σ=%{y:.4f}<br>"+cbar+"=%{z:.6f}<extra></extra>"
+            ))
+            fig.update_layout(
+                title=f"Black-Scholes {cbar} Heatmap — axes: S vs σ",
+                xaxis_title="Spot (S)",
+                yaxis_title="Volatility (σ)",
+                height=500
+            )
+            return fig
+
+        elif axes == "K-T":
+            x_vals = np.linspace(K_min, K_max, resolution)
+            y_vals = np.linspace(T_min, T_max, resolution)
+            X, Y = np.meshgrid(x_vals, y_vals)  # rows=y (T), cols=x (K)
+
+            if metric == "price":
+                Z = bs_price_vectorized(S, X, Y, r, sigma, option_type=option_type, q=q)
+                cbar = f"{option_type.capitalize()} Price"
+                if colorscale is None:
+                    cs, zmid_val = "Cividis", None
+            else:
+                G = bs_greeks_vectorized(S, X, Y, r, sigma, option_type=option_type, q=q)
+                Z = G[metric]
+                cbar = metric.capitalize()
+
+            fig = go.Figure(data=go.Heatmap(
+                z=Z, x=x_vals, y=y_vals,
+                colorscale=cs,
+                zmid=zmid_val,
+                colorbar=dict(title=cbar),
+                hovertemplate="K=%{x:.4g}<br>T=%{y:.4f}<br>"+cbar+"=%{z:.6f}<extra></extra>"
+            ))
+            fig.update_layout(
+                title=f"Black-Scholes {cbar} Heatmap — axes: K vs T",
+                xaxis_title="Strike (K)",
+                yaxis_title="Time to Maturity (T, years)",
+                height=500
+            )
+            return fig
+
+        else:
+            raise ValueError("axes must be 'S-sigma' or 'K-T'")
 
 
 
